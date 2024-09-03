@@ -1,8 +1,6 @@
 
 # Introduction to Image and Video Processing
 
-Welcome to the "Introduction to Image and Video Processing" project repository! This guide will walk you through the setup process for running the project on your local machine.
-
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your machine:
