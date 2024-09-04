@@ -82,7 +82,7 @@ def open_image():
             new_height = int(1070 / image_ratio)
         else:
             new_height = 600
-            new_width = int(600 * image_ratio)g
+            new_width = int(600 * image_ratio)
 
 
         image = image.resize((new_width, new_height), Image.LANCZOS)
