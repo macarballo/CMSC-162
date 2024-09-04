@@ -72,10 +72,45 @@ def open_image():
     )
     if file_path:
         image = Image.open(file_path)
-        image = image.resize((window_width, window_height), Image.LANCZOS)
+        
+        #Adjust image size and ratio
+        image_ratio = image.width / image.height
+        frame_ratio = 1070 / 600
+
+        if image_ratio > frame_ratio:
+            new_width = 1070
+            new_height = int(1070 / image_ratio)
+        else:
+            new_height = 600
+            new_width = int(600 * image_ratio)
+
+
+        image = image.resize((new_width, new_height), Image.LANCZOS)
         image_photo = ImageTk.PhotoImage(image)
+
+        frame.place_forget() #Hide frame
+
         image_label.config(image=image_photo)
         image_label.image = image_photo  # Keep a reference to prevent garbage collection
+        image_label.place(relwidth=1, relheight=1)
+
+        # Show the back button
+        back_button.place(relx=0.05, rely=0.05)
+
+# Function to return to the main screen
+def go_back():
+    # Show the main frame
+    frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
+    
+    # Hide the image and back button
+    image_label.place_forget()
+    back_button.place_forget()
+
+    for rect in rectangles:
+        canvas.delete(rect)
+    rectangles.clear()
+
+
 
 # Add the Viewer icon and text
 viewer_button = tk.Button(
@@ -123,6 +158,21 @@ snaptune_label.place(relx=0.512 - icon_width_fraction / 2, rely=0.57)
 # Label to display the selected image
 image_label = tk.Label(root, bg="#7db1ce")
 image_label.place(relx=0.5, rely=0.5, anchor="center")  # Position in the center of the window
+
+
+# Adding a back button (initially hidden)
+back_button = tk.Button(
+    root,
+    text="Viewer",
+    bg="#222437",
+    fg="white",
+    font=custom_font,
+    command=go_back
+)
+back_button.place_forget()
+
+
+rectangles = []
 
 # Run the main loop
 root.mainloop()
