@@ -1,6 +1,15 @@
 import tkinter as tk
+<<<<<<< Updated upstream
 from tkinter import font, filedialog
 from PIL import Image, ImageTk, ImageDraw
+=======
+from tkinter import font, filedialog, messagebox
+from PIL import Image, ImageTk
+import struct
+import numpy as np
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+>>>>>>> Stashed changes
 
 # Function to draw a rounded rectangle on a canvas
 def create_rounded_rectangle(canvas, x1, y1, x2, y2, r, **kwargs):
@@ -106,11 +115,34 @@ def go_back():
     image_label.place_forget()
     back_button.place_forget()
 
+<<<<<<< Updated upstream
     for rect in rectangles:
         canvas.delete(rect)
     rectangles.clear()
+=======
+# Function to read PCX header information
+def read_pcx_header(file_path):
+    with open(file_path, "rb") as f:
+        header_data = f.read(128)  # PCX header is 128 bytes
+        header = struct.unpack("<BxHHHHBBBBHHBBBBBBBB16s", header_data)
+        width = header[3] - header[1] + 1
+        height = header[4] - header[2] + 1
+        bits_per_pixel = header[8]
+        color_planes = header[10]
+        bytes_per_line = header[11]
+        palette_type = header[14]
+        return {
+            "Width": width,
+            "Height": height,
+            "Bits per Pixel": bits_per_pixel,
+            "Color Planes": color_planes,
+            "Bytes per Line": bytes_per_line,
+            "Palette Type": palette_type,
+        }
+>>>>>>> Stashed changes
 
 
+<<<<<<< Updated upstream
 
 # Add the Viewer icon and text
 viewer_button = tk.Button(
@@ -154,9 +186,100 @@ snaptune_label = tk.Label(
     font=custom_font
 )
 snaptune_label.place(relx=0.512 - icon_width_fraction / 2, rely=0.57)
+=======
+    try:
+        with open(file_path, 'rb') as f:
+            header = f.read(128)
 
-# Label to display the selected image
+            pcx_header = struct.unpack('<B B B B H H H H H H 48B B B H H 58B', header)
+            manufacturer = pcx_header[0]
+            version = pcx_header[1]
+            encoding = pcx_header[2]
+            bits_per_pixel = pcx_header[3]
+            xmin = pcx_header[4]
+            ymin = pcx_header[5]
+            xmax = pcx_header[6]
+            ymax = pcx_header[7]
+            hres = pcx_header[8]
+            vres = pcx_header[9]
+            palette = pcx_header[10:58]
+            nplanes = pcx_header[59]
+            bytes_per_line = pcx_header[60]
+            palette_type = pcx_header[61]
+
+            width = xmax - xmin + 1
+            height = ymax - ymin + 1
+
+            if width <= 0 or height <= 0:
+                raise ValueError("Invalid PCX file: dimensions are non-positive.")
+
+            header_info = (
+                f"Version: {version}\n"
+                f"Encoding: {encoding}\n"
+                f"Bits Per Pixel: {bits_per_pixel}\n"
+                f"Image Dimensions: {xmin} {ymin} {xmax} {ymax}\n" 
+                f"Horizontal Resolution (HDPI): {hres}\n"
+                f"Vertical Resolution (VDPI): {vres}\n"
+                f"Number of Color Planes: {nplanes}\n"
+                f"Bytes per Line: {bytes_per_line}\n"
+                f"Palette Type: {palette_type}\n"
+            )
+
+            main_frame.place_forget()
+            header_frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
+
+            info_label.config(text=header_info)
+
+            pcx_image = Image.open(file_path)
+            pcx_photo = ImageTk.PhotoImage(pcx_image)
+            img_label.config(image=pcx_photo)
+            img_label.image = pcx_photo
+            img_label.pack(side=tk.LEFT, padx=(10, 10), pady=10)
+
+            back_button.place(relx=0.05, rely=0.05)
+
+            # Display the color palette from the PCX file
+            display_color_palette(file_path)
+
+    except (FileNotFoundError, struct.error, ValueError) as e:
+        messagebox.showerror("Error", f"Failed to open PCX file: {e}")
+
+# Function to display the color palette from a PCX file
+def display_color_palette(file_path):
+    with open(file_path, 'rb') as f:
+        f.seek(-769, 2)  # Move to the palette start
+        palette_header = f.read(1)
+        if palette_header == b'\x0C':  # Ensure it's a valid palette
+            palette_data = f.read(768)
+            colors = [tuple(palette_data[i:i + 3]) for i in range(0, 768, 3)]
+
+            # Create an image to display the color palette (16x16 grid)
+            palette_image = Image.new('RGB', (16, 16))
+            palette_image.putdata(colors)
+            palette_image = palette_image.resize((128, 128), Image.NEAREST)
+            palette_tk = ImageTk.PhotoImage(palette_image)
+
+            # Update the palette label with the image
+            palette_label.config(image=palette_tk)
+            palette_label.image = palette_tk  # Keep reference to avoid garbage collection
+
+# Create the header frame to display the image and header information
+header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
+header_frame.place_forget()  # Initially hidden
+
+info_label = tk.Label(header_frame, text="", justify=tk.LEFT, bg="#7db1ce", font=custom_font)
+info_label.pack(side=tk.LEFT, padx=(10, 10), pady=10)
+
+img_label = tk.Label(header_frame, bg="#7db1ce")
+img_label.pack(side=tk.LEFT, padx=(10, 10), pady=10)
+
+palette_label = tk.Label(header_frame, bg="#7db1ce")
+palette_label.pack(side=tk.RIGHT, padx=(10, 10), pady=10)
+>>>>>>> Stashed changes
+
+# Create an image label for the displayed image
 image_label = tk.Label(root, bg="#7db1ce")
+<<<<<<< Updated upstream
 image_label.place(relx=0.5, rely=0.5, anchor="center")  # Position in the center of the window
 
 
@@ -173,6 +296,22 @@ back_button.place_forget()
 
 
 rectangles = []
+=======
+
+# Create the back button (initially hidden)
+back_button = tk.Button(root, text="Back", command=go_back)
+back_button.place_forget()
+
+# Add buttons for image viewer, snaptune, and PCX inspection
+button_viewer = tk.Button(main_frame, image=viewer_icon, text="Image Viewer", compound=tk.TOP, command=open_image)
+button_viewer.grid(row=0, column=0, padx=50, pady=30)
+
+button_snaptune = tk.Button(main_frame, image=snaptune_icon, text="SnapTune", compound=tk.TOP)
+button_snaptune.grid(row=0, column=1, padx=50, pady=30)
+
+button_pcx = tk.Button(main_frame, image=pcx_inspect_icon, text="PCX Inspector", compound=tk.TOP, command=open_pcx_file)
+button_pcx.grid(row=0, column=2, padx=50, pady=30)
+>>>>>>> Stashed changes
 
 # Run the main loop
 root.mainloop()
