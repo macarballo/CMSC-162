@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import font, filedialog, messagebox
 from PIL import Image, ImageTk
 import struct
+import numpy as np
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
 
 # Function to draw a rounded rectangle on a canvas
 def create_rounded_rectangle(canvas, x1, y1, x2, y2, r, **kwargs):
@@ -100,9 +103,8 @@ def go_back():
 # Function to read PCX header information
 def read_pcx_header(file_path):
     with open(file_path, "rb") as f:
-        header_data = f.read(128)  # PCX header is 129 bytes
+        header_data = f.read(128)  # PCX header is 128 bytes
         header = struct.unpack("<BxHHHHBBBBHHBBBBBBBB16s", header_data)
-        # Extract relevant header info
         width = header[3] - header[1] + 1
         height = header[4] - header[2] + 1
         bits_per_pixel = header[8]
@@ -126,37 +128,9 @@ def open_pcx_file():
 
     try:
         with open(file_path, 'rb') as f:
-            header = f.read(128)  # Read the first 128 bytes of the PCX file (header size)
+            header = f.read(128)
 
-            if len(header) < 128:
-                raise ValueError("Invalid PCX file: header size is incorrect.")
-
-            # Unpack the PCX header based on the provided structure
             pcx_header = struct.unpack('<B B B B H H H H H H 48B B B H H 58B', header)
-
-            # Extract header information
-            # REFERENCE: Encyclopedia of Graphics File Formats (2nd ed.)
-            # typedef struct _PcxHeader
-            # {
-            # BYTE	Identifier;        /* PCX Id Number (Always 0x0A) */
-            # BYTE	Version;           /* Version Number */
-            # BYTE	Encoding;          /* Encoding Format */
-            # BYTE	BitsPerPixel;      /* Bits per Pixel */
-            # WORD	XStart;            /* Left of image */
-            # WORD	YStart;            /* Top of Image */
-            # WORD	XEnd;              /* Right of Image
-            # WORD	YEnd;              /* Bottom of image */
-            # WORD	HorzRes;           /* Horizontal Resolution */
-            # WORD	VertRes;           /* Vertical Resolution */
-            # BYTE	Palette[48];       /* 16-Color EGA Palette */
-            # BYTE	Reserved1;         /* Reserved (Always 0) */
-            # BYTE	NumBitPlanes;      /* Number of Bit Planes */
-            # WORD	BytesPerLine;      /* Bytes per Scan-line */
-            # WORD	PaletteType;       /* Palette Type */
-            # WORD	HorzScreenSize;    /* Horizontal Screen Size */
-            # WORD	VertScreenSize;    /* Vertical Screen Size */
-            # BYTE	Reserved2[54];     /* Reserved (Always 0) */
-            # } PCXHEAD;
             manufacturer = pcx_header[0]
             version = pcx_header[1]
             encoding = pcx_header[2]
@@ -167,30 +141,18 @@ def open_pcx_file():
             ymax = pcx_header[7]
             hres = pcx_header[8]
             vres = pcx_header[9]
-            palette = pcx_header[10:58]  # 48 bytes for the palette
-            reserved1 = pcx_header[58]
-            nplanes = pcx_header[59]  # Number of color planes
+            palette = pcx_header[10:58]
+            nplanes = pcx_header[59]
             bytes_per_line = pcx_header[60]
             palette_type = pcx_header[61]
-            horizontal_screen_size = pcx_header[62]
-            vertical_screen_size = pcx_header[63]
-            reserved2= pcx_header[64]
 
-            # Calculate image dimensions
             width = xmax - xmin + 1
             height = ymax - ymin + 1
 
             if width <= 0 or height <= 0:
                 raise ValueError("Invalid PCX file: dimensions are non-positive.")
 
-            # Display header information
-            if manufacturer == 10:
-                header_info = "Manufacturer: ZSoft .pcx (10)\n"
-            else:
-                header_info = "PCX File Information:\n"
-
-            header_info += (
-                # f"Manufacturer: {manufacturer}\n"
+            header_info = (
                 f"Version: {version}\n"
                 f"Encoding: {encoding}\n"
                 f"Bits Per Pixel: {bits_per_pixel}\n"
@@ -200,124 +162,75 @@ def open_pcx_file():
                 f"Number of Color Planes: {nplanes}\n"
                 f"Bytes per Line: {bytes_per_line}\n"
                 f"Palette Type: {palette_type}\n"
-                f"Horizontal Screen Size: {horizontal_screen_size}\n"
-                f"Vertical Screen Size: {vertical_screen_size}"
             )
 
-            # Hide the main frame and show the header information
             main_frame.place_forget()
             header_frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
 
-            # Update the header information label
             info_label.config(text=header_info)
 
-            # Load the PCX image using PIL
             pcx_image = Image.open(file_path)
             pcx_photo = ImageTk.PhotoImage(pcx_image)
             img_label.config(image=pcx_photo)
-            img_label.image = pcx_photo  # Keep a reference to avoid garbage collection
+            img_label.image = pcx_photo
             img_label.pack(side=tk.LEFT, padx=(10, 10), pady=10)
 
-            # Show the back button
             back_button.place(relx=0.05, rely=0.05)
+
+            # Display the color palette from the PCX file
+            display_color_palette(file_path)
 
     except (FileNotFoundError, struct.error, ValueError) as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
 
-# Create header frame for displaying PCX header information
-header_frame = tk.Frame(root, bg="#7db1ce")
+# Function to display the color palette from a PCX file
+def display_color_palette(file_path):
+    with open(file_path, 'rb') as f:
+        f.seek(-769, 2)  # Move to the palette start
+        palette_header = f.read(1)
+        if palette_header == b'\x0C':  # Ensure it's a valid palette
+            palette_data = f.read(768)
+            colors = [tuple(palette_data[i:i + 3]) for i in range(0, 768, 3)]
 
-# Create a frame to hold the image and info side by side
-side_by_side_frame = tk.Frame(header_frame, bg="#7db1ce")
-side_by_side_frame.pack(side=tk.TOP, expand=True)
+            # Create an image to display the color palette (16x16 grid)
+            palette_image = Image.new('RGB', (16, 16))
+            palette_image.putdata(colors)
+            palette_image = palette_image.resize((128, 128), Image.NEAREST)
+            palette_tk = ImageTk.PhotoImage(palette_image)
 
-# Image label on the left
-img_label = tk.Label(side_by_side_frame, bg="#7db1ce")
-img_label.pack(side=tk.LEFT, padx=(2, 2), pady=2)
+            # Update the palette label with the image
+            palette_label.config(image=palette_tk)
+            palette_label.image = palette_tk  # Keep reference to avoid garbage collection
 
-# Info label on the right
-info_label = tk.Label(side_by_side_frame, bg="#7db1ce", fg="#222437",  font=custom_font, justify="left")
-info_label.pack(side=tk.RIGHT, padx=(2, 2), pady=2)
+# Create the header frame to display the image and header information
+header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
+header_frame.place_forget()  # Initially hidden
 
-# Add the Viewer icon and text
-viewer_button = tk.Button(
-    main_frame,
-    image=viewer_icon,
-    bg="#7db1ce",
-    bd=0,
-    cursor="hand2",
-    highlightthickness=0,
-    borderwidth=0,
-    relief="flat",
-    command=open_image
-)
-viewer_button.place(relx=0.45, rely=0.15)
-viewer_label = tk.Label(
-    main_frame,
-    text="Viewer",
-    bg="#7db1ce",
-    fg="#222437",
-    font=custom_font
-)
-viewer_label.place(relx=0.47, rely=0.32)
+info_label = tk.Label(header_frame, text="", justify=tk.LEFT, bg="#7db1ce", font=custom_font)
+info_label.pack(side=tk.LEFT, padx=(10, 10), pady=10)
 
-# Add the SnapTune icon and text
-snaptune_button = tk.Button(
-    main_frame,
-    image=snaptune_icon,
-    bg="#7db1ce",
-    bd=0,
-    cursor="hand2",
-    highlightthickness=0,
-    borderwidth=0,
-    relief="flat"
-)
-snaptune_button.place(relx=0.45, rely=0.40)
-snaptune_label = tk.Label(
-    main_frame,
-    text="SnapTune",
-    bg="#7db1ce",
-    fg="#222437",
-    font=custom_font
-)
-snaptune_label.place(relx=0.46, rely=0.57)
+img_label = tk.Label(header_frame, bg="#7db1ce")
+img_label.pack(side=tk.LEFT, padx=(10, 10), pady=10)
 
-# Add the PCX Inspect icon and text
-pcx_inspect_button = tk.Button(
-    main_frame,
-    image=pcx_inspect_icon,
-    bg="#7db1ce",
-    bd=0,
-    cursor="hand2",
-    highlightthickness=0,
-    borderwidth=0,
-    relief="flat",
-    command=open_pcx_file  # Assign the function to open PCX files
-)
-pcx_inspect_button.place(relx=0.59, rely=0.38)
-pcx_inspect_label = tk.Label(
-    main_frame,
-    text="PCX Inspect",
-    bg="#7db1ce",
-    fg="#222437",
-    font=custom_font
-)
-pcx_inspect_label.place(relx=0.59, rely=0.57)
+palette_label = tk.Label(header_frame, bg="#7db1ce")
+palette_label.pack(side=tk.RIGHT, padx=(10, 10), pady=10)
 
-# Label to display the selected image
+# Create an image label for the displayed image
 image_label = tk.Label(root, bg="#7db1ce")
-image_label.place(relx=0.5, rely=0.5, anchor="center")
 
-# Adding a back button (initially hidden)
-back_button = tk.Button(
-    root,
-    text=" < Back ",
-    bg="#222437",
-    fg="white",
-    font=custom_font,
-    command=go_back
-)
+# Create the back button (initially hidden)
+back_button = tk.Button(root, text="Back", command=go_back)
 back_button.place_forget()
+
+# Add buttons for image viewer, snaptune, and PCX inspection
+button_viewer = tk.Button(main_frame, image=viewer_icon, text="Image Viewer", compound=tk.TOP, command=open_image)
+button_viewer.grid(row=0, column=0, padx=50, pady=30)
+
+button_snaptune = tk.Button(main_frame, image=snaptune_icon, text="SnapTune", compound=tk.TOP)
+button_snaptune.grid(row=0, column=1, padx=50, pady=30)
+
+button_pcx = tk.Button(main_frame, image=pcx_inspect_icon, text="PCX Inspector", compound=tk.TOP, command=open_pcx_file)
+button_pcx.grid(row=0, column=2, padx=50, pady=30)
 
 # Run the main loop
 root.mainloop()
