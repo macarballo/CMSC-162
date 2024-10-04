@@ -8,6 +8,15 @@ import matplotlib.pyplot as plt
 
 # Function to draw a rounded rectangle on a canvas
 def create_rounded_rectangle(canvas, x1, y1, x2, y2, r, **kwargs):
+    """Draws a rounded rectangle on a specified canvas.
+
+    Args:
+        canvas: The tkinter canvas to draw on.
+        x1, y1: Top-left corner coordinates of the rectangle.
+        x2, y2: Bottom-right corner coordinates of the rectangle.
+        r: The radius of the corners.
+        **kwargs: Additional options for the rectangle and ovals.
+    """
     canvas.create_oval(x1, y1, x1 + r * 2, y1 + r * 2, **kwargs)
     canvas.create_oval(x2 - r * 2, y1, x2, y1 + r * 2, **kwargs)
     canvas.create_oval(x1, y2 - r * 2, x1 + r * 2, y2, **kwargs)
@@ -15,7 +24,7 @@ def create_rounded_rectangle(canvas, x1, y1, x2, y2, r, **kwargs):
     canvas.create_rectangle(x1 + r, y1, x2 - r, y2, **kwargs)
     canvas.create_rectangle(x1, y1 + r, x2, y2 - r, **kwargs)
 
-# Create the main window
+# Create the main application window
 root = tk.Tk()
 root.title("SnapTune")
 
@@ -50,8 +59,9 @@ main_frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
 
 # Set up grid layout with row and column weights to center the content
 main_frame.grid_columnconfigure(0, weight=1)
-main_frame.grid_columnconfigure(1, weight=0)
+main_frame.grid_columnconfigure(1, weight=1)
 main_frame.grid_columnconfigure(2, weight=1)
+main_frame.grid_columnconfigure(3, weight=1)  # New column for Histogram button
 main_frame.grid_rowconfigure(0, weight=0)  # Add weight to row above icons to center them vertically
 main_frame.grid_rowconfigure(1, weight=1)  # Row containing icons
 main_frame.grid_rowconfigure(2, weight=0)  # Add weight to row below icons to center them vertically
@@ -62,13 +72,16 @@ snaptune_image = Image.open("snaptune_icon.png")
 snaptune_image = snaptune_image.resize(viewer_image.size, Image.LANCZOS)
 pcx_inspect_image = Image.open("pcx_inspect.png")
 pcx_inspect_image = pcx_inspect_image.resize(viewer_image.size, Image.LANCZOS)
+histogram_image = Image.open("histogram_icon.png")  # New histogram icon
+histogram_image = histogram_image.resize(viewer_image.size, Image.LANCZOS)
 
 # Convert images to PhotoImage
 viewer_icon = ImageTk.PhotoImage(viewer_image)
 snaptune_icon = ImageTk.PhotoImage(snaptune_image)
 pcx_inspect_icon = ImageTk.PhotoImage(pcx_inspect_image)
+histogram_icon = ImageTk.PhotoImage(histogram_image)  # New histogram PhotoImage
 
-# Define the custom font
+# Define the custom font for buttons and labels
 try:
     custom_font = font.Font(family="HYWenHei-85W", size=12, weight="bold")
 except Exception as e:
@@ -77,6 +90,10 @@ except Exception as e:
 
 # Function to open and display an image file
 def open_image():
+    """Opens an image file and displays it in the main application window.
+
+    The image is resized to maintain aspect ratio and fit within the window.
+    """
     file_path = filedialog.askopenfilename(
         filetypes=[("Image Files", "*.jpg;*.png;*.tiff;*.jpeg;*.bmp")]
     )
@@ -103,33 +120,18 @@ def open_image():
 
 # Function to return to the main screen
 def go_back():
+    """Hides the current image and returns to the main screen."""
     image_label.place_forget()  # Hide the image label
     header_frame.place_forget()  # Hide the header frame
     main_frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)  # Show the main frame
     back_button.place_forget()  # Hide the back button
 
-# Function to read PCX header information
-def read_pcx_header(file_path):
-    with open(file_path, "rb") as f:
-        header_data = f.read(128)  # PCX header is 128 bytes
-        header = struct.unpack("<BxHHHHBBBBHHBBBBBBBB16s", header_data)
-        width = header[3] - header[1] + 1
-        height = header[4] - header[2] + 1
-        bits_per_pixel = header[8]
-        color_planes = header[10]
-        bytes_per_line = header[11]
-        palette_type = header[14]
-        return {
-            "Width": width,
-            "Height": height,
-            "Bits per Pixel": bits_per_pixel,
-            "Color Planes": color_planes,
-            "Bytes per Line": bytes_per_line,
-            "Palette Type": palette_type,
-        }
-
 # Function to open and display a PCX file
 def open_pcx_file():
+    """Opens a PCX file and extracts its metadata and image data for display.
+
+    If successful, it shows the header information and the image on the interface.
+    """
     file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
     if not file_path:
         return  # If no file is selected, return
@@ -210,6 +212,56 @@ def display_color_palette(file_path):
             palette_label.config(image=palette_tk)
             palette_label.image = palette_tk  # Keep reference to avoid garbage collection
 
+# Function to split image into RGB channels and display histograms
+def display_histogram():
+    file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
+    if not file_path:
+        return  # If no file is selected, return
+
+    try:
+        pcx_image = Image.open(file_path)
+
+        # Ensure the image is in RGB mode
+        if pcx_image.mode != 'RGB':
+            pcx_image = pcx_image.convert('RGB')
+
+        r, g, b = pcx_image.split()
+
+        fig, axs = plt.subplots(2, 3, figsize=(10, 6))
+        fig.suptitle('RGB Channels and Histograms')
+
+        # Display the RGB channels
+        axs[0, 0].imshow(r, cmap="Reds")
+        axs[0, 0].set_title("Red Channel")
+        axs[0, 1].imshow(g, cmap="Greens")
+        axs[0, 1].set_title("Green Channel")
+        axs[0, 2].imshow(b, cmap="Blues")
+        axs[0, 2].set_title("Blue Channel")
+
+        # Hide axis for clarity
+        for ax in axs[0]:
+            ax.axis("off")
+
+        # Display histograms
+        axs[1, 0].hist(np.array(r).ravel(), bins=256, color='red', alpha=0.6)
+        axs[1, 0].set_title("Red Histogram")
+        axs[1, 0].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        axs[1, 1].hist(np.array(g).ravel(), bins=256, color='green', alpha=0.6)
+        axs[1, 1].set_title("Green Histogram")
+        axs[1, 1].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        axs[1, 2].hist(np.array(b).ravel(), bins=256, color='blue', alpha=0.6)
+        axs[1, 2].set_title("Blue Histogram")
+        axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.88)  # Adjust title positioning
+        plt.show()
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to open PCX file: {e}")
+
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
 header_frame.place_forget()  # Initially hidden
@@ -242,7 +294,7 @@ back_button = tk.Button(
 )
 back_button.place_forget()  # Hide initially
 
-# Add buttons for image viewer, snaptune, and PCX inspection with reduced horizontal padding
+# Add buttons for image viewer, snaptune, and PCX inspection
 button_viewer = tk.Button(
     main_frame, 
     image=viewer_icon, 
@@ -251,7 +303,7 @@ button_viewer = tk.Button(
     command=open_image,
     font=custom_font  # Apply the custom font
 )
-button_viewer.grid(row=1, column=0, padx=25, pady=30)
+button_viewer.grid(row=1, column=0, padx=50, pady=50)
 
 button_snaptune = tk.Button(
     main_frame, 
@@ -260,7 +312,7 @@ button_snaptune = tk.Button(
     compound=tk.TOP,
     font=custom_font  # Apply the custom font
 )
-button_snaptune.grid(row=1, column=1, padx=25, pady=30)
+button_snaptune.grid(row=1, column=1, padx=50, pady=50)
 
 button_pcx = tk.Button(
     main_frame, 
@@ -270,7 +322,17 @@ button_pcx = tk.Button(
     command=open_pcx_file,
     font=custom_font  # Apply the custom font
 )
-button_pcx.grid(row=1, column=2, padx=25, pady=30)  # Reduced padx from 50 to 20
+button_pcx.grid(row=1, column=2, padx=50, pady=50)
+
+button_histogram = tk.Button(
+    main_frame, 
+    image=histogram_icon, 
+    text="Histogram", 
+    compound=tk.TOP, 
+    command=display_histogram,
+    font=custom_font  # Apply the custom font
+)
+button_histogram.grid(row=1, column=3, padx=50, pady=50)
 
 # Run the main loop
 root.mainloop()
