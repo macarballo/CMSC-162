@@ -212,7 +212,7 @@ def display_color_palette(file_path):
             palette_label.config(image=palette_tk)
             palette_label.image = palette_tk  # Keep reference to avoid garbage collection
 
-# Function to split image into RGB channels and display histograms
+# Function to split image into RGB channels, and a grayscale image, and display histograms.
 def display_histogram():
     file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
     if not file_path:
@@ -225,10 +225,14 @@ def display_histogram():
         if pcx_image.mode != 'RGB':
             pcx_image = pcx_image.convert('RGB')
 
+        # Split image into RGB channels
         r, g, b = pcx_image.split()
 
-        fig, axs = plt.subplots(2, 3, figsize=(10, 6))
-        fig.suptitle('RGB Channels and Histograms')
+        # Convert image to grayscale
+        gray_image = pcx_image.convert('L')
+
+        fig, axs = plt.subplots(2, 4, figsize=(12, 6))  # Increase size to fit 4 columns
+        fig.suptitle('RGB Channels, Black & White, and Histograms')
 
         # Display the RGB channels
         axs[0, 0].imshow(r, cmap="Reds")
@@ -237,6 +241,10 @@ def display_histogram():
         axs[0, 1].set_title("Green Channel")
         axs[0, 2].imshow(b, cmap="Blues")
         axs[0, 2].set_title("Blue Channel")
+
+        # Display the grayscale image
+        axs[0, 3].imshow(gray_image, cmap="gray")
+        axs[0, 3].set_title("Grayscale")
 
         # Hide axis for clarity
         for ax in axs[0]:
@@ -255,12 +263,18 @@ def display_histogram():
         axs[1, 2].set_title("Blue Histogram")
         axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
+        # Display histogram for black and white (grayscale) image
+        axs[1, 3].hist(np.array(gray_image).ravel(), bins=256, color='black', alpha=0.6)
+        axs[1, 3].set_title("Grayscale Histogram")
+        axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
         plt.tight_layout()
         plt.subplots_adjust(top=0.88)  # Adjust title positioning
         plt.show()
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
+
 
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
