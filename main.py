@@ -3,7 +3,6 @@ from tkinter import font, filedialog, messagebox
 from PIL import Image, ImageTk
 import struct
 import numpy as np
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
 # Function to draw a rounded rectangle on a canvas
@@ -62,6 +61,7 @@ main_frame.grid_columnconfigure(0, weight=1)
 main_frame.grid_columnconfigure(1, weight=1)
 main_frame.grid_columnconfigure(2, weight=1)
 main_frame.grid_columnconfigure(3, weight=1)  # New column for Histogram button
+main_frame.grid_columnconfigure(4, weight=1)  # New column for Point Processing button
 main_frame.grid_rowconfigure(0, weight=0)  # Add weight to row above icons to center them vertically
 main_frame.grid_rowconfigure(1, weight=1)  # Row containing icons
 main_frame.grid_rowconfigure(2, weight=0)  # Add weight to row below icons to center them vertically
@@ -74,12 +74,15 @@ pcx_inspect_image = Image.open("pcx_inspect.png")
 pcx_inspect_image = pcx_inspect_image.resize(viewer_image.size, Image.LANCZOS)
 histogram_image = Image.open("histogram_icon.png")  # New histogram icon
 histogram_image = histogram_image.resize(viewer_image.size, Image.LANCZOS)
+point_processing_image = Image.open("pprocessing_icon.png")  # Point processing icon
+point_processing_image = point_processing_image.resize(viewer_image.size, Image.LANCZOS)
 
 # Convert images to PhotoImage
 viewer_icon = ImageTk.PhotoImage(viewer_image)
 snaptune_icon = ImageTk.PhotoImage(snaptune_image)
 pcx_inspect_icon = ImageTk.PhotoImage(pcx_inspect_image)
 histogram_icon = ImageTk.PhotoImage(histogram_image)  # New histogram PhotoImage
+point_processing_icon = ImageTk.PhotoImage(point_processing_image)  # Point processing PhotoImage
 
 # Define the custom font for buttons and labels
 try:
@@ -95,7 +98,7 @@ def open_image():
     The image is resized to maintain aspect ratio and fit within the window.
     """
     file_path = filedialog.askopenfilename(
-        filetypes=[("Image Files", "*.jpg;*.png;*.tiff;*.jpeg;*.bmp")]
+        filetypes=[("Image Files", "*.jpg;*.png;*.tiff;*.jpeg;*.bmp;*.pcx")]
     )
     if file_path:
         image = Image.open(file_path)
@@ -275,6 +278,135 @@ def display_histogram():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
 
+# Function for grayscale transformation using the formula s = (R + G + B) / 3
+def grayscale_transformation(image):
+    """Converts an RGB image to grayscale using the formula: s = (R + G + B) / 3."""
+    # Convert the image to RGB mode (if not already)
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    # Create a new image for grayscale
+    width, height = image.size
+    grayscale_image = Image.new("L", (width, height))  # Create a new grayscale image
+
+    # Iterate over each pixel and apply the formula
+    for x in range(width):
+        for y in range(height):
+            r, g, b = image.getpixel((x, y))  # Get the RGB values
+            # Calculate the grayscale value
+            gray_value = int((r + g + b) / 3)
+            grayscale_image.putpixel((x, y), gray_value)  # Set the grayscale pixel
+
+    return grayscale_image
+
+# Function for negative of an image
+def negative_transformation(image):
+    """Converts an RGB image to its negative using the formula: s = L - 1 - r."""
+    # Get the maximum intensity level for 8-bit images
+    L = 256  # For 8-bit images, L is 256 (0-255)
+    
+    # Create a new image for the negative transformation
+    width, height = image.size
+    negative_image = Image.new("RGB", (width, height))  # Create a new RGB image
+
+    # Iterate over each pixel and apply the transformation
+    for x in range(width):
+        for y in range(height):
+            pixel = image.getpixel((x, y))  # Get the pixel value
+            
+            if isinstance(pixel, int):
+                # Grayscale pixel
+                neg_pixel = L - 1 - pixel
+                negative_image.putpixel((x, y), (neg_pixel, neg_pixel, neg_pixel))  # Set RGB to the same value for grayscale
+            else:
+                # RGB pixel
+                r, g, b = pixel  # Unpack RGB values
+                neg_r = L - 1 - r  # Calculate new red value
+                neg_g = L - 1 - g  # Calculate new green value
+                neg_b = L - 1 - b  # Calculate new blue value
+                negative_image.putpixel((x, y), (neg_r, neg_g, neg_b))  # Set the new pixel value
+
+    return negative_image
+
+# # Function for negative of an image
+# def negative_transformation(image):
+#     """Converts an RGB image to its negative."""
+#     inverted_image = Image.eval(image, lambda p: 255 - p)  # Invert pixel values
+#     return inverted_image
+
+# Skeleton function for black/white thresholding
+def black_white_thresholding(image, threshold):
+    """Converts an image to black and white using a manual threshold."""
+    # Create a new image for the black and white version
+    bw_image = image.convert("L")  # Convert to grayscale first
+    bw_image = bw_image.point(lambda p: 255 if p > threshold else 0)  # Apply threshold
+    return bw_image
+
+# Skeleton function for power-law (gamma) transformation
+def gamma_transformation(image, gamma):
+    """Applies gamma transformation to an image."""
+    # Create a new image for the gamma transformation
+    gamma_image = image.convert("L")  # Convert to grayscale first
+    c = 255 / (255 ** gamma)  # Calculate constant
+    gamma_image = gamma_image.point(lambda p: c * (p ** gamma))  # Apply gamma
+    return gamma_image
+
+# Function to apply point processing methods (PCX files only)
+def apply_point_processing():
+    """Open a PCX image and apply point processing methods."""
+    file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])  # Only allow PCX files
+    if not file_path:
+        return
+
+    # Open the PCX image
+    try:
+        image = Image.open(file_path)
+
+        # Apply the point processing methods
+        grayscale_image = grayscale_transformation(image)  # Use the custom transformation
+        negative_image = negative_transformation(image)
+
+        # Create a new window to display the results
+        result_window = tk.Toplevel(root)
+        result_window.title("Point Processing Results")
+        result_window.geometry("800x600")
+
+        # Create a frame for the images
+        result_frame = tk.Frame(result_window)
+        result_frame.pack(pady=10)
+
+        # Original Image
+        original_label = tk.Label(result_frame, text="Original Image", font=custom_font)
+        original_label.grid(row=0, column=0, padx=10, pady=10)
+
+        original_image_label = tk.Label(result_frame)
+        original_image_label.grid(row=1, column=0)
+        original_image_photo = ImageTk.PhotoImage(image)
+        original_image_label.config(image=original_image_photo)
+        original_image_label.image = original_image_photo  # Keep a reference to avoid garbage collection
+
+        # Grayscale Image
+        grayscale_label = tk.Label(result_frame, text="Grayscale Image", font=custom_font)
+        grayscale_label.grid(row=0, column=1, padx=10, pady=10)
+
+        grayscale_image_label = tk.Label(result_frame)
+        grayscale_image_label.grid(row=1, column=1)
+        grayscale_image_photo = ImageTk.PhotoImage(grayscale_image)
+        grayscale_image_label.config(image=grayscale_image_photo)
+        grayscale_image_label.image = grayscale_image_photo  # Keep a reference
+
+        # Negative Image
+        negative_label = tk.Label(result_frame, text="Negative Image", font=custom_font)
+        negative_label.grid(row=0, column=2, padx=10, pady=10)
+
+        negative_image_label = tk.Label(result_frame)
+        negative_image_label.grid(row=1, column=2)
+        negative_image_photo = ImageTk.PhotoImage(negative_image)
+        negative_image_label.config(image=negative_image_photo)
+        negative_image_label.image = negative_image_photo  # Keep a reference
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to process PCX file: {e}")
 
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
@@ -300,15 +432,13 @@ back_button = tk.Button(
     font=custom_font,  # Apply custom font
     bg="#222437",      # Background color to match theme
     fg="white",        # Text color for contrast
-    # activebackground="#357ABD",  # Background color when pressed
-    # activeforeground="white",    # Text color when pressed
     bd=0,              # Borderless button for a modern look
     padx=10,           # Padding to make the button larger and more clickable
     pady=5             # Vertical padding
 )
 back_button.place_forget()  # Hide initially
 
-# Add buttons for image viewer, snaptune, and PCX inspection
+# Add buttons for image viewer, snaptune, PCX inspection, histogram, and point processing
 button_viewer = tk.Button(
     main_frame, 
     image=viewer_icon, 
@@ -347,6 +477,16 @@ button_histogram = tk.Button(
     font=custom_font  # Apply the custom font
 )
 button_histogram.grid(row=1, column=3, padx=50, pady=50)
+
+button_point_processing = tk.Button(
+    main_frame, 
+    image=point_processing_icon, 
+    text="Point Processing", 
+    compound=tk.TOP, 
+    command=apply_point_processing,
+    font=custom_font
+)
+button_point_processing.grid(row=1, column=4, padx=50, pady=50)
 
 # Run the main loop
 root.mainloop()
