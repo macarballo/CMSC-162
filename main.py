@@ -301,10 +301,11 @@ def grayscale_transformation(image):
 
 # Function for negative of an image
 def negative_transformation(image):
-    """Converts an RGB image to its negative using the formula: s = L - 1 - r."""
-    # Get the maximum intensity level for 8-bit images
-    L = 256  # For 8-bit images, L is 256 (0-255)
-    
+    """Converts an RGB image to its negative using the formula: s = 255 - r, g, b."""
+    # Convert the image to RGB mode (if not already)
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+
     # Create a new image for the negative transformation
     width, height = image.size
     negative_image = Image.new("RGB", (width, height))  # Create a new RGB image
@@ -312,27 +313,13 @@ def negative_transformation(image):
     # Iterate over each pixel and apply the transformation
     for x in range(width):
         for y in range(height):
-            pixel = image.getpixel((x, y))  # Get the pixel value
-            
-            if isinstance(pixel, int):
-                # Grayscale pixel
-                neg_pixel = L - 1 - pixel
-                negative_image.putpixel((x, y), (neg_pixel, neg_pixel, neg_pixel))  # Set RGB to the same value for grayscale
-            else:
-                # RGB pixel
-                r, g, b = pixel  # Unpack RGB values
-                neg_r = L - 1 - r  # Calculate new red value
-                neg_g = L - 1 - g  # Calculate new green value
-                neg_b = L - 1 - b  # Calculate new blue value
-                negative_image.putpixel((x, y), (neg_r, neg_g, neg_b))  # Set the new pixel value
+            r, g, b = image.getpixel((x, y))  # Get the RGB values
+            neg_r = 255 - r  # Invert red
+            neg_g = 255 - g  # Invert green
+            neg_b = 255 - b  # Invert blue
+            negative_image.putpixel((x, y), (neg_r, neg_g, neg_b))  # Set the new pixel value
 
     return negative_image
-
-# # Function for negative of an image
-# def negative_transformation(image):
-#     """Converts an RGB image to its negative."""
-#     inverted_image = Image.eval(image, lambda p: 255 - p)  # Invert pixel values
-#     return inverted_image
 
 # Skeleton function for black/white thresholding
 def black_white_thresholding(image, threshold):
@@ -366,44 +353,37 @@ def apply_point_processing():
         grayscale_image = grayscale_transformation(image)  # Use the custom transformation
         negative_image = negative_transformation(image)
 
-        # Create a new window to display the results
-        result_window = tk.Toplevel(root)
-        result_window.title("Point Processing Results")
-        result_window.geometry("800x600")
+        # Create a new figure to display the results and histograms
+        fig, axs = plt.subplots(2, 3, figsize=(16, 8))  # 2 rows, 3 columns layout
+        fig.suptitle('Original and Point Processing Methods with Histograms')
 
-        # Create a frame for the images
-        result_frame = tk.Frame(result_window)
-        result_frame.pack(pady=10)
+        # Display the original image
+        axs[0, 0].imshow(image)
+        axs[0, 0].set_title('Original Image')
+        axs[0, 0].axis('off')
+        axs[1, 0].hist(np.array(image).ravel(), bins=256, color='blue', alpha=0.6)
+        axs[1, 0].set_title('Original Histogram')
+        axs[1, 0].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-        # Original Image
-        original_label = tk.Label(result_frame, text="Original Image", font=custom_font)
-        original_label.grid(row=0, column=0, padx=10, pady=10)
+        # Display the grayscale image
+        axs[0, 1].imshow(grayscale_image, cmap='gray')
+        axs[0, 1].set_title('Grayscale Transformation')
+        axs[0, 1].axis('off')
+        axs[1, 1].hist(np.array(grayscale_image).ravel(), bins=256, color='gray', alpha=0.6)
+        axs[1, 1].set_title('Grayscale Histogram')
+        axs[1, 1].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-        original_image_label = tk.Label(result_frame)
-        original_image_label.grid(row=1, column=0)
-        original_image_photo = ImageTk.PhotoImage(image)
-        original_image_label.config(image=original_image_photo)
-        original_image_label.image = original_image_photo  # Keep a reference to avoid garbage collection
+        # Display the negative image
+        axs[0, 2].imshow(negative_image)
+        axs[0, 2].set_title('Negative Transformation')
+        axs[0, 2].axis('off')
+        axs[1, 2].hist(np.array(negative_image).ravel(), bins=256, color='red', alpha=0.6)
+        axs[1, 2].set_title('Negative Histogram')
+        axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-        # Grayscale Image
-        grayscale_label = tk.Label(result_frame, text="Grayscale Image", font=custom_font)
-        grayscale_label.grid(row=0, column=1, padx=10, pady=10)
-
-        grayscale_image_label = tk.Label(result_frame)
-        grayscale_image_label.grid(row=1, column=1)
-        grayscale_image_photo = ImageTk.PhotoImage(grayscale_image)
-        grayscale_image_label.config(image=grayscale_image_photo)
-        grayscale_image_label.image = grayscale_image_photo  # Keep a reference
-
-        # Negative Image
-        negative_label = tk.Label(result_frame, text="Negative Image", font=custom_font)
-        negative_label.grid(row=0, column=2, padx=10, pady=10)
-
-        negative_image_label = tk.Label(result_frame)
-        negative_image_label.grid(row=1, column=2)
-        negative_image_photo = ImageTk.PhotoImage(negative_image)
-        negative_image_label.config(image=negative_image_photo)
-        negative_image_label.image = negative_image_photo  # Keep a reference
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.88)  # Adjust title positioning
+        plt.show()
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to process PCX file: {e}")
