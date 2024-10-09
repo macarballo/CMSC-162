@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 import struct
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 
 # Function to draw a rounded rectangle on a canvas
 def create_rounded_rectangle(canvas, x1, y1, x2, y2, r, **kwargs):
@@ -321,26 +322,61 @@ def negative_transformation(image):
 
     return negative_image
 
-# Skeleton function for black/white thresholding
-def black_white_thresholding(image, threshold):
+# Function for black/white thresholding
+def black_white_thresholding(image, threshold_value):
     """Converts an image to black and white using a manual threshold."""
-    # Create a new image for the black and white version
-    bw_image = image.convert("L")  # Convert to grayscale first
-    bw_image = bw_image.point(lambda p: 255 if p > threshold else 0)  # Apply threshold
-    return bw_image
+    # Convert the image to an array for processing
+    image_array = np.array(image.convert('RGB'))
+    grayscale_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    
+    # Apply threshold
+    _, bw_image = cv2.threshold(grayscale_image, threshold_value, 255, cv2.THRESH_BINARY)
+    
+    # Convert back to PIL Image for consistency
+    return Image.fromarray(bw_image)
 
 # Skeleton function for power-law (gamma) transformation
-def gamma_transformation(image, gamma):
+def gamma_transformation(image, gamma_value):
     """Applies gamma transformation to an image."""
     # Create a new image for the gamma transformation
-    gamma_image = image.convert("L")  # Convert to grayscale first
-    c = 255 / (255 ** gamma)  # Calculate constant
-    gamma_image = gamma_image.point(lambda p: c * (p ** gamma))  # Apply gamma
+    gamma_value = float(gamma_value)
+    image = image.convert('RGB')
+
+    gamma_image = Image.new('RGB', image.size)
+    pixels = image.load()
+    gamma_pixels_pixels = gamma_image.load()
+
+    for y in range(image.height):
+        for x in range(image.width):
+            r, g, b = pixels[x, y]
+            new_r = int(255 * (r / 255) ** gamma_value)
+            new_g = int(255 * (g / 255) ** gamma_value)
+            new_b = int(255 * (b / 255) ** gamma_value)
+            gamma_pixels_pixels[x, y] = (new_r, new_g, new_b)
+
+    gamma_image = ImageTk.PhotoImage(gamma_image)
     return gamma_image
 
-# Function to apply point processing methods (PCX files only)
+# Label and Slider for threshold value input
+threshold_label = tk.Label(main_frame, text="Threshold (0-255):", font=custom_font, bg="#7db1ce")
+threshold_label.grid(row=3, column=1, padx=10, pady=5, sticky='e')
+threshold_slider = tk.Scale(main_frame, from_=0, to=255, orient=tk.HORIZONTAL, length=200)
+threshold_slider.set(128)  # Set default value to 128
+threshold_slider.grid(row=3, column=2, padx=10, pady=5, sticky='w')
+
+# Label and Slider for gamma value input
+gamma_label = tk.Label(main_frame, text="Gamma (0.0-5.0):", font=custom_font, bg="#7db1ce")
+gamma_label.grid(row=4, column=1, padx=10, pady=5, sticky='e')
+gamma_slider = tk.Scale(main_frame, from_=0.0, to=5.0, resolution=0.1, orient=tk.HORIZONTAL, length=200)
+gamma_slider.set(1.0)  # Set default value to 1.0
+gamma_slider.grid(row=4, column=2, padx=10, pady=5, sticky='w')
+
 def apply_point_processing():
     """Open a PCX image and apply point processing methods."""
+    # Get user inputs from sliders
+    threshold_value = threshold_slider.get()
+    gamma_value = gamma_slider.get()
+
     file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])  # Only allow PCX files
     if not file_path:
         return
@@ -352,9 +388,11 @@ def apply_point_processing():
         # Apply the point processing methods
         grayscale_image = grayscale_transformation(image)  # Use the custom transformation
         negative_image = negative_transformation(image)
+        bw_image = black_white_thresholding(image, threshold_value)
+        gamma_image = gamma_transformation(image, gamma_value)
 
         # Create a new figure to display the results and histograms
-        fig, axs = plt.subplots(2, 3, figsize=(16, 8))  # 2 rows, 3 columns layout
+        fig, axs = plt.subplots(2, 5, figsize=(12, 6))  # 2 rows, 5 columns layout
         fig.suptitle('Original and Point Processing Methods with Histograms')
 
         # Display the original image
@@ -381,12 +419,28 @@ def apply_point_processing():
         axs[1, 2].set_title('Negative Histogram')
         axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
+        # Display the thresholded BW image
+        axs[0, 3].imshow(bw_image, cmap='gray')
+        axs[0, 3].set_title('Black and White Thresholding')
+        axs[0, 3].axis('off')
+        axs[1, 3].hist(np.array(bw_image).ravel(), bins=256, color='violet', alpha=0.6)
+        axs[1, 3].set_title('BW Thresholding Histogram')
+        axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        # Display the gamma transformed image
+        axs[0, 4].imshow(gamma_image)  
+        axs[0, 4].set_title('Gamma Transformation')
+        axs[0, 4].axis('off')
+        axs[1, 4].hist(np.array(gamma_image).ravel(), bins=256, color='orange', alpha=0.6)
+        axs[1, 4].set_title('Gamma Histogram')
+        axs[1, 4].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
         plt.tight_layout()
         plt.subplots_adjust(top=0.88)  # Adjust title positioning
         plt.show()
 
     except Exception as e:
-        messagebox.showerror("Error", f"Failed to process PCX file: {e}")
+        messagebox.showerror("Error", f"Failed to open PCX file: {e}")
 
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
