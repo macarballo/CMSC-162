@@ -340,21 +340,8 @@ def gamma_transformation(image, gamma_value):
     """Applies gamma transformation to an image."""
     # Create a new image for the gamma transformation
     gamma_value = float(gamma_value)
-    image = image.convert('RGB')
-
-    gamma_image = Image.new('RGB', image.size)
-    pixels = image.load()
-    gamma_pixels_pixels = gamma_image.load()
-
-    for y in range(image.height):
-        for x in range(image.width):
-            r, g, b = pixels[x, y]
-            new_r = int(255 * (r / 255) ** gamma_value)
-            new_g = int(255 * (g / 255) ** gamma_value)
-            new_b = int(255 * (b / 255) ** gamma_value)
-            gamma_pixels_pixels[x, y] = (new_r, new_g, new_b)
-
-    gamma_image = ImageTk.PhotoImage(gamma_image)
+    gamma_image = np.array(255*(image/255)**gamma_value)
+    gamma_image = np.float32(gamma_image)
     return gamma_image
 
 # Label and Slider for threshold value input
@@ -389,7 +376,7 @@ def apply_point_processing():
         grayscale_image = grayscale_transformation(image)  # Use the custom transformation
         negative_image = negative_transformation(image)
         bw_image = black_white_thresholding(image, threshold_value)
-        gamma_image = gamma_transformation(image, gamma_value)
+        gamma_image = gamma_transformation(np.array(image), gamma_value)
 
         # Create a new figure to display the results and histograms
         fig, axs = plt.subplots(2, 5, figsize=(12, 6))  # 2 rows, 5 columns layout
@@ -428,10 +415,10 @@ def apply_point_processing():
         axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
         # Display the gamma transformed image
-        axs[0, 4].imshow(gamma_image)  
+        axs[0, 4].imshow(gamma_image.astype(np.uint8))  # Ensure type is correct for displaying
         axs[0, 4].set_title('Gamma Transformation')
         axs[0, 4].axis('off')
-        axs[1, 4].hist(np.array(gamma_image).ravel(), bins=256, color='orange', alpha=0.6)
+        axs[1, 4].hist(gamma_image.ravel(), bins=256, color='orange', alpha=0.6)
         axs[1, 4].set_title('Gamma Histogram')
         axs[1, 4].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
