@@ -338,10 +338,24 @@ def black_white_thresholding(image, threshold_value):
 # Skeleton function for power-law (gamma) transformation
 def gamma_transformation(image, gamma_value):
     """Applies gamma transformation to an image."""
-    # Create a new image for the gamma transformation
-    gamma_value = float(gamma_value)
-    gamma_image = np.array(255*(image/255)**gamma_value)
-    gamma_image = np.float32(gamma_image)
+    """Converts an RGB image to its negative using the formula: s = 255 - r, g, b."""
+    # Convert the image to RGB mode (if not already)
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+
+    # Create a new image for the negative transformation
+    width, height = image.size
+    gamma_image = Image.new("RGB", (width, height))  # Create a new RGB image
+
+    # Iterate over each pixel and apply the transformation
+    for x in range(width):
+        for y in range(height):
+            r, g, b = image.getpixel((x, y))  # Get the RGB values
+            gam_r = int(255 * (r / 255) ** gamma_value)
+            gam_g = int(255 * (g / 255) ** gamma_value)
+            gam_b = int(255 * (b / 255) ** gamma_value)
+            gamma_image.putpixel((x, y), (gam_r, gam_g, gam_b))  # Set the new pixel value
+
     return gamma_image
 
 # Label and Slider for threshold value input
@@ -374,9 +388,10 @@ def apply_point_processing():
 
         # Apply the point processing methods
         grayscale_image = grayscale_transformation(image)  # Use the custom transformation
+        gamma_image = gamma_transformation(image, gamma_value)
         negative_image = negative_transformation(image)
         bw_image = black_white_thresholding(image, threshold_value)
-        gamma_image = gamma_transformation(np.array(image), gamma_value)
+        
 
         # Create a new figure to display the results and histograms
         fig, axs = plt.subplots(2, 5, figsize=(12, 6))  # 2 rows, 5 columns layout
@@ -415,10 +430,10 @@ def apply_point_processing():
         axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
         # Display the gamma transformed image
-        axs[0, 4].imshow(gamma_image.astype(np.uint8))  # Ensure type is correct for displaying
+        axs[0, 4].imshow(gamma_image)  # Ensure type is correct for displaying
         axs[0, 4].set_title('Gamma Transformation')
         axs[0, 4].axis('off')
-        axs[1, 4].hist(gamma_image.ravel(), bins=256, color='orange', alpha=0.6)
+        axs[1, 4].hist(np.array(gamma_image).ravel(), bins=256, color='orange', alpha=0.6)
         axs[1, 4].set_title('Gamma Histogram')
         axs[1, 4].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
