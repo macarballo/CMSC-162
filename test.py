@@ -467,56 +467,44 @@ def apply_sobel_operator(image):
     sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
     sobel_magnitude = np.uint8(np.absolute(sobel_magnitude))
     return Image.fromarray(sobel_magnitude)
-'''
+
 def apply_averaging(image):
-    image_array = np.array(image.convert('L'))
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     kernel_size = (5, 5)
     averaging_filter = np.ones(kernel_size, np.float32) / (kernel_size[0] * kernel_size[1])
-    averaged_image = cv2.filter2D(image_array, -1, averaging_filter)
-    return Image.fromarray(np.clip(averaged_image, 0, 255).astype(np.uint8))
-'''
-def apply_averaging(image):
-
-    image_array = np.array(image.convert('RGB'))
-
-    b_channel, g_channel, r_channel = cv2.split(image_array)
+    averaged_image = cv2.filter2D(gray_image, -1, averaging_filter)
     
-    kernel_size = (5, 5)
-    averaging_filter = np.ones(kernel_size, np.float32) / (kernel_size[0] * kernel_size[1])
-    
-    b_blurred = cv2.filter2D(b_channel, -1, averaging_filter)
-    g_blurred = cv2.filter2D(g_channel, -1, averaging_filter)
-    r_blurred = cv2.filter2D(r_channel, -1, averaging_filter)
-    
-    averaged_image = cv2.merge((b_blurred, g_blurred, r_blurred))
-    
-    return Image.fromarray(np.clip(averaged_image, 0, 255).astype(np.uint8))
-
-'''
 def apply_median(image):
-    image_array = np.array(image.convert('L'))  
-    median_filtered_image = cv2.medianBlur(image_array, 3)
-    return Image.fromarray(median_filtered_image)
-'''
+    arr = np.array(image)
+    temp = []
+    filter_size = 3
+    indexer = filter_size // 2
+    data_final = []
+    data_final = np.zeros((len(arr),len(arr[0])))
+    for i in range(len(arr)):
 
-def apply_median(image):
-    image_array = np.array(image.convert('RGB')) 
-    b_channel, g_channel, r_channel = cv2.split(image_array)
-    
-    b_median = cv2.medianBlur(b_channel, 3)
-    g_median = cv2.medianBlur(g_channel, 3)
-    r_median = cv2.medianBlur(r_channel, 3)
-    
-    median_filtered_image = cv2.merge((b_median, g_median, r_median))
-    
-    return Image.fromarray(np.clip(median_filtered_image, 0, 255).astype(np.uint8))
+        for j in range(len(arr[0])):
 
+            for z in range(filter_size):
+                if i + z - indexer < 0 or i + z - indexer > len(arr) - 1:
+                    for c in range(filter_size):
+                        temp.append(0)
+                else:
+                    if j + z - indexer < 0 or j + indexer > len(arr[0]) - 1:
+                        temp.append(0)
+                    else:
+                        for k in range(filter_size):
+                            temp.append(arr[i + z - indexer][j + k - indexer])
+
+            temp.sort()
+            data_final[i][j] = temp[len(temp) // 2]
+            temp = []
+    return data_final
 
 def apply_highpass(image):
-    image_array = np.array(image.convert('L')) 
-    laplacian_filtered_image = cv2.Laplacian(image_array, cv2.CV_64F)
-    laplacian_filtered_image = cv2.convertScaleAbs(laplacian_filtered_image)
-    return Image.fromarray(laplacian_filtered_image)
+
+
+
 
 # Global variable to keep track of the enhancement window
 enhancement_window = None
@@ -609,11 +597,11 @@ def image_enhancement():
 
     # Add buttons for the image enhancement filters in the right column
     Button(right_frame, text="Unsharp Masking", command=lambda: apply_filter(apply_unsharp_mask)).pack(pady=5)
+    
+    # Show input box for amplification when this button is clicked
     Button(right_frame, text="Highboost Filtering", command=show_amplification_input).pack(pady=5)
+
     Button(right_frame, text="Sobel Magnitude Operator", command=lambda: apply_filter(apply_sobel_operator)).pack(pady=5)
-    Button(right_frame, text="Averaging Filter", command=lambda: apply_filter(apply_averaging)).pack(pady=5)
-    Button(right_frame, text="Median Filter", command=lambda: apply_filter(apply_median)).pack(pady=5)
-    Button(right_frame, text="Highpass Filter (Laplacian)", command=lambda: apply_filter(apply_highpass)).pack(pady=5)
     
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
