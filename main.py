@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import font, filedialog, messagebox
+from tkinter import font, filedialog, messagebox, Toplevel, Frame, Button, Label,messagebox, Entry
 from PIL import Image, ImageTk
 import struct
 import numpy as np
@@ -443,7 +443,128 @@ def apply_point_processing():
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
+    
+# Functions for image enhancements
+def apply_unsharp_mask(image, sigma=10.0, strength=1.5):
+    """Applies unsharp masking to the input image."""
+    image_array = np.array(image.convert('L'))
+    blurred = cv2.GaussianBlur(image_array, (9, 9), sigma)
+    unsharp_image = cv2.addWeighted(image_array, strength, blurred, -0.5, 0)
+    return Image.fromarray(np.clip(unsharp_image, 0, 255).astype(np.uint8))
 
+def apply_highboost_filter(image, amplification=2.0):
+    """Applies highboost filtering to the input image."""
+    image_array = np.array(image.convert('L'))
+    blurred = cv2.GaussianBlur(image_array, (9, 9), 10.0)
+    highboost_image = cv2.addWeighted(image_array, amplification, blurred, -(amplification - 1), 0)
+    return Image.fromarray(np.clip(highboost_image, 0, 255).astype(np.uint8))
+
+def apply_sobel_operator(image):
+    """Applies the Sobel magnitude operator for edge detection."""
+    image_array = np.array(image.convert('L'))
+    sobel_x = cv2.Sobel(image_array, cv2.CV_64F, 1, 0, ksize=3)
+    sobel_y = cv2.Sobel(image_array, cv2.CV_64F, 0, 1, ksize=3)
+    sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+    sobel_magnitude = np.uint8(np.absolute(sobel_magnitude))
+    return Image.fromarray(sobel_magnitude)
+
+# Global variable to keep track of the enhancement window
+enhancement_window = None
+
+# Function to handle the menu for image enhancement
+def image_enhancement():
+    """Displays a menu for the user to choose an image enhancement method."""
+    global enhancement_window  # Use the global variable
+
+    # Check if the enhancement window already exists
+    if enhancement_window is not None and enhancement_window.winfo_exists():
+        enhancement_window.lift()  # Bring the existing window to the front
+        return  # Exit the function to avoid creating a new window
+
+    def display_results(original_image, processed_image, title):
+        """Displays the original image and processed image in a new figure."""
+        fig, axs = plt.subplots(1, 2, figsize=(10, 5))  # 1 row, 2 columns layout
+        fig.suptitle(title)
+
+        # Display the original image
+        axs[0].imshow(original_image, cmap='gray')
+        axs[0].set_title('Original Image')
+        axs[0].axis('off')
+
+        # Display the processed image
+        axs[1].imshow(processed_image, cmap='gray')
+        axs[1].set_title('Processed Image')
+        axs[1].axis('off')
+
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.88)  # Adjust title positioning
+        plt.show()
+
+    def apply_filter(filter_func, *args):
+        """Applies the chosen filter to the selected image."""
+        file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
+        if file_path:
+            try:
+                pcx_image = Image.open(file_path)
+
+                # Apply the selected filter and display results
+                processed_image = filter_func(pcx_image, *args)
+                display_results(pcx_image, processed_image, filter_func.__name__)
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to apply filter: {e}")
+
+    # Create a new window for the image enhancement options
+    enhancement_window = Toplevel(root)
+    enhancement_window.title("Image Enhancement")
+
+    # Keep the enhancement window on top of others
+    enhancement_window.attributes('-topmost', True)
+
+    # Create frames for layout
+    left_frame = Frame(enhancement_window)
+    left_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+    right_frame = Frame(enhancement_window)
+    right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+    # Add labels or instructions in the left column
+    Label(left_frame, text="Select an enhancement method from the right:").pack(pady=5)
+
+    # Create a label and entry for amplification value (initially hidden)
+    amplification_label = Label(left_frame, text="Enter Amplification Value (default: 2.0):")
+    amplification_entry = Entry(left_frame)
+    
+    # Button for confirming highboost filter (initially hidden)
+    confirm_button = Button(left_frame, text="Confirm Highboost Filtering", command=lambda: confirm_highboost_filter())
+    
+    def show_amplification_input():
+        """Show the amplification input when highboost filtering button is clicked."""
+        amplification_label.pack(pady=5)
+        amplification_entry.pack(pady=5)
+        amplification_entry.insert(0, "2.0")  # Default value
+        confirm_button.pack(pady=5)  # Show confirm button
+
+    def confirm_highboost_filter():
+        """Applies the highboost filter with the specified amplification value."""
+        amplification_value = amplification_entry.get()
+        try:
+            amplification_value = float(amplification_value)
+            apply_filter(apply_highboost_filter, amplification_value)
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid numerical amplification value.")
+            confirm_button.pack_forget()  # Hide confirm button if input is invalid
+        else:
+            confirm_button.pack_forget()  # Hide confirm button after successful input
+
+    # Add buttons for the image enhancement filters in the right column
+    Button(right_frame, text="Unsharp Masking", command=lambda: apply_filter(apply_unsharp_mask)).pack(pady=5)
+    
+    # Show input box for amplification when this button is clicked
+    Button(right_frame, text="Highboost Filtering", command=show_amplification_input).pack(pady=5)
+
+    Button(right_frame, text="Sobel Magnitude Operator", command=lambda: apply_filter(apply_sobel_operator)).pack(pady=5)
+    
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
 header_frame.place_forget()  # Initially hidden
@@ -459,6 +580,11 @@ palette_label.pack(side=tk.RIGHT, padx=(60, 150), pady=10)
 
 # Create an image label for the displayed image
 image_label = tk.Label(root, bg="#7db1ce")
+
+# Load images for the icons (including the new image enhancement icon)
+image_enhancement_image = Image.open("image_enhancement.png")
+image_enhancement_image = image_enhancement_image.resize(viewer_image.size, Image.LANCZOS)
+image_enhancement_icon = ImageTk.PhotoImage(image_enhancement_image)
 
 # Create the back button (initially hidden) with custom styling
 back_button = tk.Button(
@@ -523,6 +649,16 @@ button_point_processing = tk.Button(
     font=custom_font
 )
 button_point_processing.grid(row=1, column=4, padx=50, pady=50)
+
+# Add Image Enhancement button to the main frame
+image_enhancement_button = tk.Button(
+    main_frame, 
+    image=image_enhancement_icon, 
+    text="Image Enhancement", 
+    compound="top", 
+    command=image_enhancement,
+    font=custom_font)
+image_enhancement_button.grid(row=1, column=5, padx=20, pady=20)
 
 # Run the main loop
 root.mainloop()
