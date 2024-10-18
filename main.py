@@ -446,77 +446,148 @@ def apply_point_processing():
     
 # Functions for image enhancements
 def apply_unsharp_mask(image, sigma=10.0, strength=1.5):
-    """Applies unsharp masking to the input image."""
-    image_array = np.array(image.convert('L'))
-    blurred = cv2.GaussianBlur(image_array, (9, 9), sigma)
-    unsharp_image = cv2.addWeighted(image_array, strength, blurred, -0.5, 0)
+    """Applies unsharp masking to the input PCX image by processing each RGB channel separately."""
+    # Convert image to numpy array
+    image_array = np.array(image)
+
+    # Check the number of dimensions
+    if image_array.ndim != 3:
+        raise ValueError("Input image must be a color image with 3 channels (RGB).")
+
+    # Check if the image has 3 channels (RGB)
+    if image_array.shape[2] != 3:
+        raise ValueError("Image does not have 3 channels (RGB). Check image format.")
+
+    # Split into R, G, B channels
+    r, g, b = cv2.split(image_array)
+
+    # Apply Gaussian blur and unsharp masking to each RGB channel
+    r_blurred = cv2.GaussianBlur(r, (11, 11), sigma)
+    r_unsharp = cv2.addWeighted(r, 1.0 + strength, r_blurred, -strength, 0)
+
+    g_blurred = cv2.GaussianBlur(g, (11, 11), sigma)
+    g_unsharp = cv2.addWeighted(g, 1.0 + strength, g_blurred, -strength, 0)
+
+    b_blurred = cv2.GaussianBlur(b, (11, 11), sigma)
+    b_unsharp = cv2.addWeighted(b, 1.0 + strength, b_blurred, -strength, 0)
+
+    # Merge the processed R, G, B channels back together
+    unsharp_image = cv2.merge((r_unsharp, g_unsharp, b_unsharp))
+
+    # Ensure pixel values are in valid range and return the processed image
     return Image.fromarray(np.clip(unsharp_image, 0, 255).astype(np.uint8))
 
 def apply_highboost_filter(image, amplification=2.0):
-    """Applies highboost filtering to the input image."""
-    image_array = np.array(image.convert('L'))
-    blurred = cv2.GaussianBlur(image_array, (9, 9), 10.0)
-    highboost_image = cv2.addWeighted(image_array, amplification, blurred, -(amplification - 1), 0)
+    """Applies highboost filtering to the input image by processing each RGB channel separately."""
+    # Convert image to numpy array
+    image_array = np.array(image)
+
+    # Check the number of dimensions
+    if image_array.ndim != 3:
+        raise ValueError("Input image must be a color image with 3 channels (RGB).")
+
+    # Split into R, G, B channels
+    r, g, b = cv2.split(image_array)
+
+    # Apply Gaussian blur to each channel
+    r_blurred = cv2.GaussianBlur(r, (9, 9), 10.0)
+    g_blurred = cv2.GaussianBlur(g, (9, 9), 10.0)
+    b_blurred = cv2.GaussianBlur(b, (9, 9), 10.0)
+
+    # Apply highboost filtering to each channel
+    r_highboost = cv2.addWeighted(r, amplification, r_blurred, -(amplification - 1), 0)
+    g_highboost = cv2.addWeighted(g, amplification, g_blurred, -(amplification - 1), 0)
+    b_highboost = cv2.addWeighted(b, amplification, b_blurred, -(amplification - 1), 0)
+
+    # Merge the processed R, G, B channels back together
+    highboost_image = cv2.merge((r_highboost, g_highboost, b_highboost))
+
+    # Ensure pixel values are in valid range and return the processed image
     return Image.fromarray(np.clip(highboost_image, 0, 255).astype(np.uint8))
 
 def apply_sobel_operator(image):
     """Applies the Sobel magnitude operator for edge detection."""
+    # Convert the input image to a grayscale image (L mode) and then to a numpy array
     image_array = np.array(image.convert('L'))
-    sobel_x = cv2.Sobel(image_array, cv2.CV_64F, 1, 0, ksize=3)
-    sobel_y = cv2.Sobel(image_array, cv2.CV_64F, 0, 1, ksize=3)
-    sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
-    sobel_magnitude = np.uint8(np.absolute(sobel_magnitude))
-    return Image.fromarray(sobel_magnitude)
-'''
-def apply_averaging(image):
-    image_array = np.array(image.convert('L'))
-    kernel_size = (5, 5)
-    averaging_filter = np.ones(kernel_size, np.float32) / (kernel_size[0] * kernel_size[1])
-    averaged_image = cv2.filter2D(image_array, -1, averaging_filter)
-    return Image.fromarray(np.clip(averaged_image, 0, 255).astype(np.uint8))
-'''
-def apply_averaging(image):
 
+    # Apply the Sobel operator in the x direction to detect horizontal edges
+    # cv2.CV_64F allows for more precise calculations with double precision
+    sobel_x = cv2.Sobel(image_array, cv2.CV_64F, 1, 0, ksize=3)
+
+    # Apply the Sobel operator in the y direction to detect vertical edges
+    # Again using cv2.CV_64F for precision
+    sobel_y = cv2.Sobel(image_array, cv2.CV_64F, 0, 1, ksize=3)
+
+    # Calculate the magnitude of the Sobel gradients using the Pythagorean theorem
+    # This combines the horizontal and vertical edge detections
+    sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+
+    # Convert the Sobel magnitude array to an 8-bit unsigned integer format
+    # Use np.absolute to ensure all values are non-negative
+    sobel_magnitude = np.uint8(np.absolute(sobel_magnitude))
+
+    # Convert the resulting numpy array back to a PIL Image and return it
+    return Image.fromarray(sobel_magnitude)
+
+def apply_averaging(image):
+    """Applies an averaging filter to the input image to blur it."""
+    # Convert the input image to a NumPy array in RGB format
     image_array = np.array(image.convert('RGB'))
 
+    # Split the image into its Blue, Green, and Red channels
     b_channel, g_channel, r_channel = cv2.split(image_array)
     
+    # Define the kernel size for the averaging filter
     kernel_size = (5, 5)
+    
+    # Create the averaging filter kernel, normalizing by the area of the kernel
     averaging_filter = np.ones(kernel_size, np.float32) / (kernel_size[0] * kernel_size[1])
     
+    # Apply the averaging filter to each color channel separately
     b_blurred = cv2.filter2D(b_channel, -1, averaging_filter)
     g_blurred = cv2.filter2D(g_channel, -1, averaging_filter)
     r_blurred = cv2.filter2D(r_channel, -1, averaging_filter)
     
+    # Merge the blurred channels back into a single image
     averaged_image = cv2.merge((b_blurred, g_blurred, r_blurred))
     
+    # Clip the pixel values to ensure they fall within the valid range [0, 255]
+    # and convert the result back to a PIL Image before returning
     return Image.fromarray(np.clip(averaged_image, 0, 255).astype(np.uint8))
 
-'''
 def apply_median(image):
-    image_array = np.array(image.convert('L'))  
-    median_filtered_image = cv2.medianBlur(image_array, 3)
-    return Image.fromarray(median_filtered_image)
-'''
-
-def apply_median(image):
+    """Applies a median filter to the input image to reduce noise."""
+    # Convert the input image to a NumPy array in RGB format
     image_array = np.array(image.convert('RGB')) 
+    
+    # Split the image into its Blue, Green, and Red channels
     b_channel, g_channel, r_channel = cv2.split(image_array)
     
+    # Apply the median blur filter to each color channel separately with a kernel size of 3
     b_median = cv2.medianBlur(b_channel, 3)
     g_median = cv2.medianBlur(g_channel, 3)
     r_median = cv2.medianBlur(r_channel, 3)
     
+    # Merge the median filtered channels back into a single image
     median_filtered_image = cv2.merge((b_median, g_median, r_median))
     
+    # Clip pixel values to ensure they are within the valid range [0, 255] and return as a PIL Image
     return Image.fromarray(np.clip(median_filtered_image, 0, 255).astype(np.uint8))
 
-
 def apply_highpass(image):
+    """Applies a high-pass filter to the input image using the Laplacian operator."""
+    # Convert the input image to a NumPy array in grayscale format
     image_array = np.array(image.convert('L')) 
+    
+    # Apply the Laplacian operator to detect edges in the image
     laplacian_filtered_image = cv2.Laplacian(image_array, cv2.CV_64F)
+    
+    # Convert the filtered image to an 8-bit unsigned integer format, suitable for display
     laplacian_filtered_image = cv2.convertScaleAbs(laplacian_filtered_image)
+    
+    # Return the resulting high-pass filtered image as a PIL Image
     return Image.fromarray(laplacian_filtered_image)
+
 
 # Global variable to keep track of the enhancement window
 enhancement_window = None
@@ -556,6 +627,9 @@ def image_enhancement():
         if file_path:
             try:
                 pcx_image = Image.open(file_path)
+
+                # Convert image to RGB (ensures 3 channels)
+                pcx_image = pcx_image.convert("RGB")
 
                 # Apply the selected filter and display results
                 processed_image = filter_func(pcx_image, *args)
@@ -608,12 +682,12 @@ def image_enhancement():
             confirm_button.pack_forget()  # Hide confirm button after successful input
 
     # Add buttons for the image enhancement filters in the right column
-    Button(right_frame, text="Unsharp Masking", command=lambda: apply_filter(apply_unsharp_mask)).pack(pady=5)
-    Button(right_frame, text="Highboost Filtering", command=show_amplification_input).pack(pady=5)
-    Button(right_frame, text="Sobel Magnitude Operator", command=lambda: apply_filter(apply_sobel_operator)).pack(pady=5)
     Button(right_frame, text="Averaging Filter", command=lambda: apply_filter(apply_averaging)).pack(pady=5)
     Button(right_frame, text="Median Filter", command=lambda: apply_filter(apply_median)).pack(pady=5)
     Button(right_frame, text="Highpass Filter (Laplacian)", command=lambda: apply_filter(apply_highpass)).pack(pady=5)
+    Button(right_frame, text="Unsharp Masking", command=lambda: apply_filter(apply_unsharp_mask)).pack(pady=5)
+    Button(right_frame, text="Highboost Filtering", command=show_amplification_input).pack(pady=5)
+    Button(right_frame, text="Sobel Magnitude Operator", command=lambda: apply_filter(apply_sobel_operator)).pack(pady=5)
     
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
