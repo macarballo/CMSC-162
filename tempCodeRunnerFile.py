@@ -353,119 +353,91 @@ def gamma_transformation(image, gamma_value):
 
     return gamma_image
 
+# Label and Slider for threshold value input
+threshold_label = tk.Label(main_frame, text="Threshold (0-255):", font=custom_font, bg="#7db1ce")
+threshold_label.grid(row=3, column=1, padx=10, pady=5, sticky='e')
+threshold_slider = tk.Scale(main_frame, from_=0, to=255, orient=tk.HORIZONTAL, length=200)
+threshold_slider.set(128)  # Set default value to 128
+threshold_slider.grid(row=3, column=2, padx=10, pady=5, sticky='w')
+
+# Label and Slider for gamma value input
+gamma_label = tk.Label(main_frame, text="Gamma (0.0-5.0):", font=custom_font, bg="#7db1ce")
+gamma_label.grid(row=4, column=1, padx=10, pady=5, sticky='e')
+gamma_slider = tk.Scale(main_frame, from_=0.0, to=5.0, resolution=0.1, orient=tk.HORIZONTAL, length=200)
+gamma_slider.set(1.0)  # Set default value to 1.0
+gamma_slider.grid(row=4, column=2, padx=10, pady=5, sticky='w')
+
 def apply_point_processing():
-    """Displays a menu for the user to choose an image enhancement or point processing method."""
-    global enhancement_window  # Use the global variable
-    selected_filter = None  # Initialize the selected filter variable
+    """Open a PCX image and apply point processing methods."""
+    # Get user inputs from sliders
+    threshold_value = threshold_slider.get()
+    gamma_value = gamma_slider.get()
 
-    # Check if the enhancement window already exists
-    if enhancement_window is not None and enhancement_window.winfo_exists():
-        enhancement_window.lift()  # Bring the existing window to the front
-        return  # Exit the function to avoid creating a new window
+    file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])  # Only allow PCX files
+    if not file_path:
+        return
 
-    def display_results(original_image, processed_image, title):
-        """Displays the original image and processed image in a new figure."""
-        fig, axs = plt.subplots(1, 2, figsize=(10, 5))  # 1 row, 2 columns layout
-        fig.suptitle(title)
+    # Open the PCX image
+    try:
+        image = Image.open(file_path)
+
+        # Apply the point processing methods
+        grayscale_image = grayscale_transformation(image)  # Use the custom transformation
+        gamma_image = gamma_transformation(image, gamma_value)
+        negative_image = negative_transformation(image)
+        bw_image = black_white_thresholding(image, threshold_value)
+        
+        # Create a new figure to display the results and histograms
+        fig, axs = plt.subplots(2, 5, figsize=(12, 6))  # 2 rows, 5 columns layout
+        fig.suptitle('Original and Point Processing Methods with Histograms')
 
         # Display the original image
-        axs[0].imshow(original_image, cmap='gray')
-        axs[0].set_title('Original Image')
-        axs[0].axis('off')
+        axs[0, 0].imshow(image)
+        axs[0, 0].set_title('Original Image')
+        axs[0, 0].axis('off')
+        axs[1, 0].hist(np.array(image).ravel(), bins=256, color='blue', alpha=0.6)
+        axs[1, 0].set_title('Original Histogram')
+        axs[1, 0].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-        # Display the processed image
-        axs[1].imshow(processed_image, cmap='gray')
-        axs[1].set_title('Processed Image')
-        axs[1].axis('off')
+        # Display the grayscale image
+        axs[0, 1].imshow(grayscale_image, cmap='gray')
+        axs[0, 1].set_title('Grayscale Transformation')
+        axs[0, 1].axis('off')
+        axs[1, 1].hist(np.array(grayscale_image).ravel(), bins=256, color='gray', alpha=0.6)
+        axs[1, 1].set_title('Grayscale Histogram')
+        axs[1, 1].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        # Display the negative image
+        axs[0, 2].imshow(negative_image)
+        axs[0, 2].set_title('Negative Transformation')
+        axs[0, 2].axis('off')
+        axs[1, 2].hist(np.array(negative_image).ravel(), bins=256, color='red', alpha=0.6)
+        axs[1, 2].set_title('Negative Histogram')
+        axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        # Display the thresholded BW image
+        axs[0, 3].imshow(bw_image, cmap='gray')
+        axs[0, 3].set_title('Black and White Thresholding')
+        axs[0, 3].axis('off')
+        axs[1, 3].hist(np.array(bw_image).ravel(), bins=256, color='violet', alpha=0.6)
+        axs[1, 3].set_title('BW Thresholding Histogram')
+        axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+
+        # Display the gamma transformed image
+        axs[0, 4].imshow(gamma_image)  # Ensure type is correct for displaying
+        axs[0, 4].set_title('Gamma Transformation')
+        axs[0, 4].axis('off')
+        axs[1, 4].hist(np.array(gamma_image).ravel(), bins=256, color='orange', alpha=0.6)
+        axs[1, 4].set_title('Gamma Histogram')
+        axs[1, 4].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
         plt.tight_layout()
         plt.subplots_adjust(top=0.88)  # Adjust title positioning
         plt.show()
 
-    def apply_filter(filter_func, *args):
-        """Applies the chosen filter to the selected image."""
-        file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
-        if file_path:
-            try:
-                pcx_image = Image.open(file_path)
-
-                # Convert image to RGB (ensures 3 channels)
-                pcx_image = pcx_image.convert("RGB")
-
-                # Apply the selected filter and display results
-                processed_image = filter_func(pcx_image, *args)
-                display_results(pcx_image, processed_image, filter_func.__name__)
-
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to apply filter: {e}")
-
-    # Create a new window for the image enhancement options
-    enhancement_window = Toplevel(root)
-    enhancement_window.title("Image Enhancement")
-
-    # Keep the enhancement window on top of others
-    enhancement_window.attributes('-topmost', True)
-
-    # Create frames for layout
-    left_frame = Frame(enhancement_window)
-    left_frame.pack(side=tk.LEFT, padx=10, pady=10)
-
-    right_frame = Frame(enhancement_window)
-    right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
-
-    # Add labels or instructions in the left column
-    Label(left_frame, text="Select an enhancement method from the right:").pack(pady=5)
-
-    # Create a label and entry for threshold and gamma value (initially hidden)
-    threshold_label = Label(left_frame, text="Threshold Value (0-255):")
-    threshold_slider = tk.Scale(left_frame, from_=0, to=255, orient=tk.HORIZONTAL, length=200)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to open PCX file: {e}")
     
-    gamma_label = Label(left_frame, text="Gamma Value (0.0-5.0):")
-    gamma_slider = tk.Scale(left_frame, from_=0.0, to=5.0, resolution=0.1, orient=tk.HORIZONTAL, length=200)
-    
-    # Button for confirming filter with dynamic input (initially hidden)
-    confirm_button = Button(left_frame, text="Confirm", command=lambda: confirm_point_processing())
-
-    def show_threshold_slider():
-        """Show the threshold input for black/white thresholding."""
-        nonlocal selected_filter  # Access and modify the outer variable
-        selected_filter = 'Black and White Thresholding'  # Set the selected filter
-
-        gamma_slider.pack_forget()
-        gamma_label.pack_forget()
-        threshold_label.pack(pady=5)
-        threshold_slider.pack(pady=5)
-        confirm_button.pack(pady=5)
-
-    def show_gamma_slider():
-        """Show the gamma input for gamma transformation."""
-        nonlocal selected_filter  # Access and modify the outer variable
-        selected_filter = 'Gamma Transformation'  # Set the selected filter
-
-        threshold_slider.pack_forget()
-        threshold_label.pack_forget()
-        gamma_label.pack(pady=5)
-        gamma_slider.pack(pady=5)
-        confirm_button.pack(pady=5)
-
-    def confirm_point_processing():
-        """Applies the selected point processing method."""
-        # Apply the appropriate method based on user selection
-        threshold_value = threshold_slider.get()
-        gamma_value = gamma_slider.get()
-
-        if selected_filter == 'Black and White Thresholding':
-            apply_filter(black_white_thresholding, threshold_value)
-        elif selected_filter == 'Gamma Transformation':
-            apply_filter(gamma_transformation, gamma_value)
-        confirm_button.pack_forget()
-
-    # Add buttons for the point processing filters in the right column
-    Button(right_frame, text="Grayscale Transformation", command=lambda: apply_filter(grayscale_transformation)).pack(pady=5)
-    Button(right_frame, text="Negative Transformation", command=lambda: apply_filter(negative_transformation)).pack(pady=5)
-    Button(right_frame, text="Black and White Thresholding", command=show_threshold_slider).pack(pady=5)
-    Button(right_frame, text="Gamma Transformation", command=show_gamma_slider).pack(pady=5)
-   
 # Functions for image enhancements
 def apply_unsharp_mask(image, sigma=10.0, strength=1.5):
     """Applies unsharp masking to the input PCX image by processing each RGB channel separately."""
