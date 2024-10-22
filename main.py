@@ -439,7 +439,7 @@ def apply_point_processing():
         gamma_label.pack_forget()
         threshold_label.pack(pady=5)
         threshold_slider.pack(pady=5)
-        confirm_button.pack(pady=5)
+        confirm_button.pack(pady=5)  # Show confirm button
 
     def show_gamma_slider():
         """Show the gamma input for gamma transformation."""
@@ -450,7 +450,7 @@ def apply_point_processing():
         threshold_label.pack_forget()
         gamma_label.pack(pady=5)
         gamma_slider.pack(pady=5)
-        confirm_button.pack(pady=5)
+        confirm_button.pack(pady=5)  # Show confirm button
 
     def confirm_point_processing():
         """Applies the selected point processing method."""
@@ -462,7 +462,16 @@ def apply_point_processing():
             apply_filter(black_white_thresholding, threshold_value)
         elif selected_filter == 'Gamma Transformation':
             apply_filter(gamma_transformation, gamma_value)
+
+        # Hide the confirm button after processing
         confirm_button.pack_forget()
+        # Hide sliders after confirmation
+        if selected_filter == 'Black and White Thresholding':
+            threshold_label.pack_forget()
+            threshold_slider.pack_forget()
+        elif selected_filter == 'Gamma Transformation':
+            gamma_label.pack_forget()
+            gamma_slider.pack_forget()
 
     # Add buttons for the point processing filters in the right column
     Button(right_frame, text="Grayscale Transformation", command=lambda: apply_filter(grayscale_transformation), font=custom_font).pack(pady=5)
