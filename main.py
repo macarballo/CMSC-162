@@ -413,18 +413,21 @@ def apply_point_processing():
     right_frame = Frame(enhancement_window)
     right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
+    # Custom font for the UI elements
+    custom_font = ("Helvetica", 12)  # Adjust font family and size as needed
+
     # Add labels or instructions in the left column
-    Label(left_frame, text="Select an enhancement method from the right:").pack(pady=5)
+    Label(left_frame, text="Select a point-processing method from the right:", font=custom_font).pack(pady=5)
 
     # Create a label and entry for threshold and gamma value (initially hidden)
-    threshold_label = Label(left_frame, text="Threshold Value (0-255):")
+    threshold_label = Label(left_frame, text="Threshold Value (0-255):", font=custom_font)
     threshold_slider = tk.Scale(left_frame, from_=0, to=255, orient=tk.HORIZONTAL, length=200)
-    
-    gamma_label = Label(left_frame, text="Gamma Value (0.0-5.0):")
+
+    gamma_label = Label(left_frame, text="Gamma Value (0.0-5.0):", font=custom_font)
     gamma_slider = tk.Scale(left_frame, from_=0.0, to=5.0, resolution=0.1, orient=tk.HORIZONTAL, length=200)
-    
+
     # Button for confirming filter with dynamic input (initially hidden)
-    confirm_button = Button(left_frame, text="Confirm", command=lambda: confirm_point_processing())
+    confirm_button = Button(left_frame, text="Confirm", command=lambda: confirm_point_processing(), font=custom_font)
 
     def show_threshold_slider():
         """Show the threshold input for black/white thresholding."""
@@ -461,11 +464,11 @@ def apply_point_processing():
         confirm_button.pack_forget()
 
     # Add buttons for the point processing filters in the right column
-    Button(right_frame, text="Grayscale Transformation", command=lambda: apply_filter(grayscale_transformation)).pack(pady=5)
-    Button(right_frame, text="Negative Transformation", command=lambda: apply_filter(negative_transformation)).pack(pady=5)
-    Button(right_frame, text="Black and White Thresholding", command=show_threshold_slider).pack(pady=5)
-    Button(right_frame, text="Gamma Transformation", command=show_gamma_slider).pack(pady=5)
-   
+    Button(right_frame, text="Grayscale Transformation", command=lambda: apply_filter(grayscale_transformation), font=custom_font).pack(pady=5)
+    Button(right_frame, text="Negative Transformation", command=lambda: apply_filter(negative_transformation), font=custom_font).pack(pady=5)
+    Button(right_frame, text="Black and White Thresholding", command=show_threshold_slider, font=custom_font).pack(pady=5)
+    Button(right_frame, text="Gamma Transformation", command=show_gamma_slider, font=custom_font).pack(pady=5)
+
 # Functions for image enhancements
 def apply_unsharp_mask(image, sigma=10.0, strength=1.5):
     """Applies unsharp masking to the input PCX image by processing each RGB channel separately."""
@@ -610,7 +613,6 @@ def apply_highpass(image):
     # Return the resulting high-pass filtered image as a PIL Image
     return Image.fromarray(laplacian_filtered_image)
 
-
 # Global variable to keep track of the enhancement window
 enhancement_window = None
 
@@ -630,12 +632,12 @@ def image_enhancement():
         fig.suptitle(title)
 
         # Display the original image
-        axs[0].imshow(original_image, cmap='gray')
+        axs[0].imshow(original_image)
         axs[0].set_title('Original Image')
         axs[0].axis('off')
 
         # Display the processed image
-        axs[1].imshow(processed_image, cmap='gray')
+        axs[1].imshow(processed_image)
         axs[1].set_title('Processed Image')
         axs[1].axis('off')
 
@@ -649,7 +651,6 @@ def image_enhancement():
         if file_path:
             try:
                 pcx_image = Image.open(file_path)
-
                 # Convert image to RGB (ensures 3 channels)
                 pcx_image = pcx_image.convert("RGB")
 
@@ -674,42 +675,40 @@ def image_enhancement():
     right_frame = Frame(enhancement_window)
     right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
-    # Add labels or instructions in the left column
-    Label(left_frame, text="Select an enhancement method from the right:").pack(pady=5)
+    # Add a label above the enhancement buttons in the right column
+    method_label = Label(left_frame, text="Select an enhancement method:", font=custom_font)
+    method_label.pack(pady=5)
 
-    # Create a label and entry for amplification value (initially hidden)
-    amplification_label = Label(left_frame, text="Enter Amplification Value (default: 2.0):")
-    amplification_entry = Entry(left_frame)
-    
+    # Create a label and slider for amplification value (initially hidden)
+    amplification_label = Label(left_frame, text="Amplification Value (default: 2.0):", font=custom_font)
+    amplification_slider = tk.Scale(left_frame, from_=0.1, to=5.0, resolution=0.1, orient=tk.HORIZONTAL)
+    amplification_slider.set(2.0)  # Default value
+
     # Button for confirming highboost filter (initially hidden)
-    confirm_button = Button(left_frame, text="Confirm Highboost Filtering", command=lambda: confirm_highboost_filter())
-    
+    confirm_button = Button(left_frame, text="Confirm Highboost Filtering", command=lambda: confirm_highboost_filter(), font=custom_font)
+
     def show_amplification_input():
         """Show the amplification input when highboost filtering button is clicked."""
         amplification_label.pack(pady=5)
-        amplification_entry.pack(pady=5)
-        amplification_entry.insert(0, "2.0")  # Default value
+        amplification_slider.pack(pady=5)
         confirm_button.pack(pady=5)  # Show confirm button
 
     def confirm_highboost_filter():
         """Applies the highboost filter with the specified amplification value."""
-        amplification_value = amplification_entry.get()
-        try:
-            amplification_value = float(amplification_value)
-            apply_filter(apply_highboost_filter, amplification_value)
-        except ValueError:
-            messagebox.showerror("Error", "Please enter a valid numerical amplification value.")
-            confirm_button.pack_forget()  # Hide confirm button if input is invalid
-        else:
-            confirm_button.pack_forget()  # Hide confirm button after successful input
+        amplification_value = amplification_slider.get()
+        apply_filter(apply_highboost_filter, amplification_value)
+        # Hide the amplification input after applying
+        amplification_label.pack_forget()
+        amplification_slider.pack_forget()
+        confirm_button.pack_forget()
 
     # Add buttons for the image enhancement filters in the right column
-    Button(right_frame, text="Averaging Filter", command=lambda: apply_filter(apply_averaging)).pack(pady=5)
-    Button(right_frame, text="Median Filter", command=lambda: apply_filter(apply_median)).pack(pady=5)
-    Button(right_frame, text="Highpass Filter (Laplacian)", command=lambda: apply_filter(apply_highpass)).pack(pady=5)
-    Button(right_frame, text="Unsharp Masking", command=lambda: apply_filter(apply_unsharp_mask)).pack(pady=5)
-    Button(right_frame, text="Highboost Filtering", command=show_amplification_input).pack(pady=5)
-    Button(right_frame, text="Sobel Magnitude Operator", command=lambda: apply_filter(apply_sobel_operator)).pack(pady=5)
+    Button(right_frame, text="Averaging Filter", command=lambda: apply_filter(apply_averaging), font=custom_font).pack(pady=5)
+    Button(right_frame, text="Median Filter", command=lambda: apply_filter(apply_median), font=custom_font).pack(pady=5)
+    Button(right_frame, text="Highpass Filter (Laplacian)", command=lambda: apply_filter(apply_highpass), font=custom_font).pack(pady=5)
+    Button(right_frame, text="Unsharp Masking", command=lambda: apply_filter(apply_unsharp_mask), font=custom_font).pack(pady=5)
+    Button(right_frame, text="Highboost Filtering", command=show_amplification_input, font=custom_font).pack(pady=5)
+    Button(right_frame, text="Sobel Magnitude Operator", command=lambda: apply_filter(apply_sobel_operator), font=custom_font).pack(pady=5)
     
 # Create the header frame to display the image and header information
 header_frame = tk.Frame(root, bg="#7db1ce", bd=0)
