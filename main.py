@@ -382,47 +382,58 @@ def apply_point_processing():
         image = Image.open(file_path)
 
         # Apply the point processing methods
-        grayscale_image = grayscale_transformation(image)
+        grayscale_image = grayscale_transformation(image)  # Use the custom transformation
         gamma_image = gamma_transformation(image, gamma_value)
         negative_image = negative_transformation(image)
         bw_image = black_white_thresholding(image, threshold_value)
+        
+        # Create a new figure to display the results and histograms
+        fig, axs = plt.subplots(2, 5, figsize=(12, 6))  # 2 rows, 5 columns layout
+        fig.suptitle('Original and Point Processing Methods with Histograms')
 
-        # Create a window for the user to choose which processing method to display
-        selection_window = Toplevel(root)
-        selection_window.title("Select Point Processing Method")
+        # Display the original image
+        axs[0, 0].imshow(image)
+        axs[0, 0].set_title('Original Image')
+        axs[0, 0].axis('off')
+        axs[1, 0].hist(np.array(image).ravel(), bins=256, color='blue', alpha=0.6)
+        axs[1, 0].set_title('Original Histogram')
+        axs[1, 0].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-        Label(selection_window, text="Choose a point processing method to display:", font=custom_font).pack(padx=10, pady=10)
+        # Display the grayscale image
+        axs[0, 1].imshow(grayscale_image, cmap='gray')
+        axs[0, 1].set_title('Grayscale Transformation')
+        axs[0, 1].axis('off')
+        axs[1, 1].hist(np.array(grayscale_image).ravel(), bins=256, color='gray', alpha=0.6)
+        axs[1, 1].set_title('Grayscale Histogram')
+        axs[1, 1].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-        # Function to display the selected image and its histogram
-        def show_processing_result(processed_image, title, hist_color):
-            fig, axs = plt.subplots(2, 1, figsize=(6, 6))
-            fig.suptitle(title)
+        # Display the negative image
+        axs[0, 2].imshow(negative_image)
+        axs[0, 2].set_title('Negative Transformation')
+        axs[0, 2].axis('off')
+        axs[1, 2].hist(np.array(negative_image).ravel(), bins=256, color='red', alpha=0.6)
+        axs[1, 2].set_title('Negative Histogram')
+        axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-            # Display the processed image
-            axs[0].imshow(processed_image, cmap='gray' if title == 'Grayscale Transformation' else None)
-            axs[0].set_title(title)
-            axs[0].axis("off")
+        # Display the thresholded BW image
+        axs[0, 3].imshow(bw_image, cmap='gray')
+        axs[0, 3].set_title('Black and White Thresholding')
+        axs[0, 3].axis('off')
+        axs[1, 3].hist(np.array(bw_image).ravel(), bins=256, color='violet', alpha=0.6)
+        axs[1, 3].set_title('BW Thresholding Histogram')
+        axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-            # Display the histogram for the processed image
-            axs[1].hist(np.array(processed_image).ravel(), bins=256, color=hist_color, alpha=0.6)
-            axs[1].set_title(f"{title} Histogram")
+        # Display the gamma transformed image
+        axs[0, 4].imshow(gamma_image)  # Ensure type is correct for displaying
+        axs[0, 4].set_title('Gamma Transformation')
+        axs[0, 4].axis('off')
+        axs[1, 4].hist(np.array(gamma_image).ravel(), bins=256, color='orange', alpha=0.6)
+        axs[1, 4].set_title('Gamma Histogram')
+        axs[1, 4].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
 
-            plt.tight_layout()
-            plt.subplots_adjust(top=0.88)
-            plt.show()
-
-        # Create buttons for each processing method
-        Button(selection_window, text="Grayscale Transformation", font=custom_font,
-               command=lambda: show_processing_result(grayscale_image, "Grayscale Transformation", 'gray')).pack(pady=10)
-
-        Button(selection_window, text="Negative Transformation", font=custom_font,
-               command=lambda: show_processing_result(negative_image, "Negative Transformation", 'red')).pack(pady=10)
-
-        Button(selection_window, text="Black and White Thresholding", font=custom_font,
-               command=lambda: show_processing_result(bw_image, "Black and White Thresholding", 'violet')).pack(pady=10)
-
-        Button(selection_window, text="Gamma Transformation", font=custom_font,
-               command=lambda: show_processing_result(gamma_image, "Gamma Transformation", 'orange')).pack(pady=10)
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.88)  # Adjust title positioning
+        plt.show()
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
