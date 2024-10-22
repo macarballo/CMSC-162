@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import font, filedialog, messagebox, Toplevel, Frame, Button, Label,messagebox, Entry
+from tkinter import font, filedialog, messagebox, Toplevel, Frame, Button, Label,messagebox, Entry, ttk
 from PIL import Image, ImageTk
 import struct
 import numpy as np
@@ -32,9 +32,9 @@ root.title("SnapTune")
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 
-# Set the window size to be a fraction of the screen size
-window_width = int(screen_width * 0.8)
-window_height = int(screen_height * 0.8)
+# Set the window size to be full screen
+window_width = int(screen_width * 1.0)
+window_height = int(screen_height * 1.0)
 
 # Apply the window size and position the window in the center of the screen
 root.geometry(f"{window_width}x{window_height}+{int(screen_width * 0.1)}+{int(screen_height * 0.1)}")
@@ -59,18 +59,16 @@ main_frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
 
 # Set up grid layout with row and column weights to center the content
 main_frame.grid_columnconfigure(0, weight=1)
-main_frame.grid_columnconfigure(1, weight=1)
-main_frame.grid_columnconfigure(2, weight=1)
-main_frame.grid_columnconfigure(3, weight=1)  # New column for Histogram button
-main_frame.grid_columnconfigure(4, weight=1)  # New column for Point Processing button
+main_frame.grid_columnconfigure(1, weight=1)  # PCX Inspector column (was column 2)
+main_frame.grid_columnconfigure(2, weight=1)  # Histogram column (was column 3)
+main_frame.grid_columnconfigure(3, weight=1)  # Point Processing column (was column 4)
+main_frame.grid_columnconfigure(4, weight=1)  # Image Enhancement column (was column 5)
 main_frame.grid_rowconfigure(0, weight=0)  # Add weight to row above icons to center them vertically
 main_frame.grid_rowconfigure(1, weight=1)  # Row containing icons
 main_frame.grid_rowconfigure(2, weight=0)  # Add weight to row below icons to center them vertically
 
 # Load images for the icons
 viewer_image = Image.open("viewer_icon.png")
-snaptune_image = Image.open("snaptune_icon.png")
-snaptune_image = snaptune_image.resize(viewer_image.size, Image.LANCZOS)
 pcx_inspect_image = Image.open("pcx_inspect.png")
 pcx_inspect_image = pcx_inspect_image.resize(viewer_image.size, Image.LANCZOS)
 histogram_image = Image.open("histogram_icon.png")  # New histogram icon
@@ -80,7 +78,6 @@ point_processing_image = point_processing_image.resize(viewer_image.size, Image.
 
 # Convert images to PhotoImage
 viewer_icon = ImageTk.PhotoImage(viewer_image)
-snaptune_icon = ImageTk.PhotoImage(snaptune_image)
 pcx_inspect_icon = ImageTk.PhotoImage(pcx_inspect_image)
 histogram_icon = ImageTk.PhotoImage(histogram_image)  # New histogram PhotoImage
 point_processing_icon = ImageTk.PhotoImage(point_processing_image)  # Point processing PhotoImage
@@ -216,65 +213,63 @@ def display_color_palette(file_path):
             palette_label.config(image=palette_tk)
             palette_label.image = palette_tk  # Keep reference to avoid garbage collection
 
-# Function to split image into RGB channels, and a grayscale image, and display histograms.
+# Function to allow user to choose which channels to display using buttons and show the corresponding histograms
 def display_histogram():
+    # Open a file dialog to select the PCX file
     file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
     if not file_path:
         return  # If no file is selected, return
 
     try:
+        # Load the PCX image
         pcx_image = Image.open(file_path)
 
         # Ensure the image is in RGB mode
         if pcx_image.mode != 'RGB':
             pcx_image = pcx_image.convert('RGB')
 
-        # Split image into RGB channels
+        # Split the image into RGB channels and convert to grayscale
         r, g, b = pcx_image.split()
-
-        # Convert image to grayscale
         gray_image = pcx_image.convert('L')
 
-        fig, axs = plt.subplots(2, 4, figsize=(12, 6))  # Increase size to fit 4 columns
-        fig.suptitle('RGB Channels, Black & White, and Histograms')
+        # Create a window for the user to choose which channel to display
+        selection_window = Toplevel(root)
+        selection_window.title("Select Channels")
 
-        # Display the RGB channels
-        axs[0, 0].imshow(r, cmap="Reds")
-        axs[0, 0].set_title("Red Channel")
-        axs[0, 1].imshow(g, cmap="Greens")
-        axs[0, 1].set_title("Green Channel")
-        axs[0, 2].imshow(b, cmap="Blues")
-        axs[0, 2].set_title("Blue Channel")
+        # Update label to use custom font
+        Label(selection_window, text="Click a button to display the corresponding channel and histogram", 
+              font=custom_font).pack(padx=10, pady=10)
 
-        # Display the grayscale image
-        axs[0, 3].imshow(gray_image, cmap="gray")
-        axs[0, 3].set_title("Grayscale")
+        # Function to display a single channel and its histogram
+        def show_channel(channel, channel_name, color, img, ax_color_map, hist_color):
+            fig, axs = plt.subplots(2, 1, figsize=(6, 6))
+            fig.suptitle(f'{channel_name} Channel and Histogram')
 
-        # Hide axis for clarity
-        for ax in axs[0]:
-            ax.axis("off")
+            # Display the selected channel
+            axs[0].imshow(img, cmap=ax_color_map)
+            axs[0].set_title(f"{channel_name} Channel")
+            axs[0].axis("off")
 
-        # Display histograms
-        axs[1, 0].hist(np.array(r).ravel(), bins=256, color='red', alpha=0.6)
-        axs[1, 0].set_title("Red Histogram")
-        axs[1, 0].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+            # Display the histogram for the selected channel
+            axs[1].hist(np.array(channel).ravel(), bins=256, color=hist_color, alpha=0.6)
+            axs[1].set_title(f"{channel_name} Histogram")
 
-        axs[1, 1].hist(np.array(g).ravel(), bins=256, color='green', alpha=0.6)
-        axs[1, 1].set_title("Green Histogram")
-        axs[1, 1].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.88)
+            plt.show()
 
-        axs[1, 2].hist(np.array(b).ravel(), bins=256, color='blue', alpha=0.6)
-        axs[1, 2].set_title("Blue Histogram")
-        axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+        # Buttons for each channel with the customized font
+        Button(selection_window, text="Red Channel", font=custom_font, 
+               command=lambda: show_channel(r, "Red", 'red', r, "Reds", 'red')).pack(pady=10)
 
-        # Display histogram for black and white (grayscale) image
-        axs[1, 3].hist(np.array(gray_image).ravel(), bins=256, color='black', alpha=0.6)
-        axs[1, 3].set_title("Grayscale Histogram")
-        axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+        Button(selection_window, text="Green Channel", font=custom_font, 
+               command=lambda: show_channel(g, "Green", 'green', g, "Greens", 'green')).pack(pady=10)
 
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.88)  # Adjust title positioning
-        plt.show()
+        Button(selection_window, text="Blue Channel", font=custom_font, 
+               command=lambda: show_channel(b, "Blue", 'blue', b, "Blues", 'blue')).pack(pady=10)
+
+        Button(selection_window, text="Grayscale", font=custom_font, 
+               command=lambda: show_channel(gray_image, "Grayscale", 'black', gray_image, "gray", 'black')).pack(pady=10)
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
@@ -387,59 +382,47 @@ def apply_point_processing():
         image = Image.open(file_path)
 
         # Apply the point processing methods
-        grayscale_image = grayscale_transformation(image)  # Use the custom transformation
+        grayscale_image = grayscale_transformation(image)
         gamma_image = gamma_transformation(image, gamma_value)
         negative_image = negative_transformation(image)
         bw_image = black_white_thresholding(image, threshold_value)
-        
 
-        # Create a new figure to display the results and histograms
-        fig, axs = plt.subplots(2, 5, figsize=(12, 6))  # 2 rows, 5 columns layout
-        fig.suptitle('Original and Point Processing Methods with Histograms')
+        # Create a window for the user to choose which processing method to display
+        selection_window = Toplevel(root)
+        selection_window.title("Select Point Processing Method")
 
-        # Display the original image
-        axs[0, 0].imshow(image)
-        axs[0, 0].set_title('Original Image')
-        axs[0, 0].axis('off')
-        axs[1, 0].hist(np.array(image).ravel(), bins=256, color='blue', alpha=0.6)
-        axs[1, 0].set_title('Original Histogram')
-        axs[1, 0].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+        Label(selection_window, text="Choose a point processing method to display:", font=custom_font).pack(padx=10, pady=10)
 
-        # Display the grayscale image
-        axs[0, 1].imshow(grayscale_image, cmap='gray')
-        axs[0, 1].set_title('Grayscale Transformation')
-        axs[0, 1].axis('off')
-        axs[1, 1].hist(np.array(grayscale_image).ravel(), bins=256, color='gray', alpha=0.6)
-        axs[1, 1].set_title('Grayscale Histogram')
-        axs[1, 1].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+        # Function to display the selected image and its histogram
+        def show_processing_result(processed_image, title, hist_color):
+            fig, axs = plt.subplots(2, 1, figsize=(6, 6))
+            fig.suptitle(title)
 
-        # Display the negative image
-        axs[0, 2].imshow(negative_image)
-        axs[0, 2].set_title('Negative Transformation')
-        axs[0, 2].axis('off')
-        axs[1, 2].hist(np.array(negative_image).ravel(), bins=256, color='red', alpha=0.6)
-        axs[1, 2].set_title('Negative Histogram')
-        axs[1, 2].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+            # Display the processed image
+            axs[0].imshow(processed_image, cmap='gray' if title == 'Grayscale Transformation' else None)
+            axs[0].set_title(title)
+            axs[0].axis("off")
 
-        # Display the thresholded BW image
-        axs[0, 3].imshow(bw_image, cmap='gray')
-        axs[0, 3].set_title('Black and White Thresholding')
-        axs[0, 3].axis('off')
-        axs[1, 3].hist(np.array(bw_image).ravel(), bins=256, color='violet', alpha=0.6)
-        axs[1, 3].set_title('BW Thresholding Histogram')
-        axs[1, 3].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+            # Display the histogram for the processed image
+            axs[1].hist(np.array(processed_image).ravel(), bins=256, color=hist_color, alpha=0.6)
+            axs[1].set_title(f"{title} Histogram")
 
-        # Display the gamma transformed image
-        axs[0, 4].imshow(gamma_image)  # Ensure type is correct for displaying
-        axs[0, 4].set_title('Gamma Transformation')
-        axs[0, 4].axis('off')
-        axs[1, 4].hist(np.array(gamma_image).ravel(), bins=256, color='orange', alpha=0.6)
-        axs[1, 4].set_title('Gamma Histogram')
-        axs[1, 4].legend(['Pixels'], loc='upper right', fontsize='medium', frameon=True)
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.88)
+            plt.show()
 
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.88)  # Adjust title positioning
-        plt.show()
+        # Create buttons for each processing method
+        Button(selection_window, text="Grayscale Transformation", font=custom_font,
+               command=lambda: show_processing_result(grayscale_image, "Grayscale Transformation", 'gray')).pack(pady=10)
+
+        Button(selection_window, text="Negative Transformation", font=custom_font,
+               command=lambda: show_processing_result(negative_image, "Negative Transformation", 'red')).pack(pady=10)
+
+        Button(selection_window, text="Black and White Thresholding", font=custom_font,
+               command=lambda: show_processing_result(bw_image, "Black and White Thresholding", 'violet')).pack(pady=10)
+
+        Button(selection_window, text="Gamma Transformation", font=custom_font,
+               command=lambda: show_processing_result(gamma_image, "Gamma Transformation", 'orange')).pack(pady=10)
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to open PCX file: {e}")
@@ -735,15 +718,6 @@ button_viewer = tk.Button(
 )
 button_viewer.grid(row=1, column=0, padx=50, pady=50)
 
-button_snaptune = tk.Button(
-    main_frame, 
-    image=snaptune_icon, 
-    text="SnapTune", 
-    compound=tk.TOP,
-    font=custom_font  # Apply the custom font
-)
-button_snaptune.grid(row=1, column=1, padx=50, pady=50)
-
 button_pcx = tk.Button(
     main_frame, 
     image=pcx_inspect_icon, 
@@ -752,7 +726,7 @@ button_pcx = tk.Button(
     command=open_pcx_file,
     font=custom_font  # Apply the custom font
 )
-button_pcx.grid(row=1, column=2, padx=50, pady=50)
+button_pcx.grid(row=1, column=1, padx=50, pady=50)
 
 button_histogram = tk.Button(
     main_frame, 
@@ -762,7 +736,7 @@ button_histogram = tk.Button(
     command=display_histogram,
     font=custom_font  # Apply the custom font
 )
-button_histogram.grid(row=1, column=3, padx=50, pady=50)
+button_histogram.grid(row=1, column=2, padx=50, pady=50)
 
 button_point_processing = tk.Button(
     main_frame, 
@@ -772,7 +746,7 @@ button_point_processing = tk.Button(
     command=apply_point_processing,
     font=custom_font
 )
-button_point_processing.grid(row=1, column=4, padx=50, pady=50)
+button_point_processing.grid(row=1, column=3, padx=50, pady=50)
 
 # Add Image Enhancement button to the main frame
 image_enhancement_button = tk.Button(
@@ -782,7 +756,7 @@ image_enhancement_button = tk.Button(
     compound="top", 
     command=image_enhancement,
     font=custom_font)
-image_enhancement_button.grid(row=1, column=5, padx=20, pady=20)
+image_enhancement_button.grid(row=1, column=4, padx=20, pady=20)
 
 # Run the main loop
 root.mainloop()
