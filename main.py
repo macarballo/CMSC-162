@@ -215,6 +215,8 @@ def display_color_palette(file_path):
 
 # Function to allow user to choose which channels to display using buttons and show the corresponding histograms
 def display_histogram():
+    custom_font = font.Font(family="HYWenHei-85W", size=12)
+
     # Open a file dialog to select the PCX file
     file_path = filedialog.askopenfilename(filetypes=[("PCX Files", "*.pcx")])
     if not file_path:
@@ -237,7 +239,7 @@ def display_histogram():
         selection_window.title("Select Channels")
 
         # Update label to use custom font
-        Label(selection_window, text="Click a button to display the corresponding channel and histogram", 
+        Label(selection_window, text="Select a channel:", 
               font=custom_font).pack(padx=10, pady=10)
 
         # Function to display a single channel and its histogram
@@ -401,7 +403,7 @@ def apply_point_processing():
 
     # Create a new window for the image enhancement options
     enhancement_window = Toplevel(root)
-    enhancement_window.title("Image Enhancement")
+    enhancement_window.title("Point Processing")
 
     # Keep the enhancement window on top of others
     enhancement_window.attributes('-topmost', True)
@@ -413,11 +415,10 @@ def apply_point_processing():
     right_frame = Frame(enhancement_window)
     right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
-    # Custom font for the UI elements
-    custom_font = ("Helvetica", 12)  # Adjust font family and size as needed
+    custom_font = font.Font(family="HYWenHei-85W", size=12)
 
     # Add labels or instructions in the left column
-    Label(left_frame, text="Select a point-processing method from the right:", font=custom_font).pack(pady=5)
+    Label(left_frame, text="Select a point-processing method:", font=custom_font).pack(pady=5)
 
     # Create a label and entry for threshold and gamma value (initially hidden)
     threshold_label = Label(left_frame, text="Threshold Value (0-255):", font=custom_font)
@@ -536,23 +537,24 @@ def apply_sobel_operator(image):
     image_array = np.array(image.convert('L'))
 
     # Apply the Sobel operator in the x direction to detect horizontal edges
-    # cv2.CV_64F allows for more precise calculations with double precision
     sobel_x = cv2.Sobel(image_array, cv2.CV_64F, 1, 0, ksize=3)
 
     # Apply the Sobel operator in the y direction to detect vertical edges
-    # Again using cv2.CV_64F for precision
     sobel_y = cv2.Sobel(image_array, cv2.CV_64F, 0, 1, ksize=3)
 
     # Calculate the magnitude of the Sobel gradients using the Pythagorean theorem
-    # This combines the horizontal and vertical edge detections
     sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
 
-    # Convert the Sobel magnitude array to an 8-bit unsigned integer format
-    # Use np.absolute to ensure all values are non-negative
-    sobel_magnitude = np.uint8(np.absolute(sobel_magnitude))
+    # Normalize the Sobel magnitude to the range [0, 255]
+    sobel_magnitude = (sobel_magnitude / np.max(sobel_magnitude)) * 255
 
-    # Convert the resulting numpy array back to a PIL Image and return it
-    return Image.fromarray(sobel_magnitude)
+    # Convert the Sobel magnitude array to an 8-bit unsigned integer format
+    sobel_magnitude = np.uint8(sobel_magnitude)
+
+    # Convert the resulting numpy array back to a PIL Image
+    sobel_image = Image.fromarray(sobel_magnitude)
+
+    return sobel_image
 
 def apply_averaging(image):
     """Applies an averaging filter to the input image to blur it."""
@@ -616,10 +618,12 @@ def apply_highpass(image):
 # Global variable to keep track of the enhancement window
 enhancement_window = None
 
-# Function to handle the menu for image enhancement
+# Function to handle the menu for image enhancement 
 def image_enhancement():
     """Displays a menu for the user to choose an image enhancement method."""
     global enhancement_window  # Use the global variable
+
+    custom_font = font.Font(family="HYWenHei-85W", size=12)
 
     # Check if the enhancement window already exists
     if enhancement_window is not None and enhancement_window.winfo_exists():
@@ -632,12 +636,12 @@ def image_enhancement():
         fig.suptitle(title)
 
         # Display the original image
-        axs[0].imshow(original_image)
+        axs[0].imshow(original_image.convert("RGB"))  # Convert original to RGB for correct display
         axs[0].set_title('Original Image')
         axs[0].axis('off')
 
-        # Display the processed image
-        axs[1].imshow(processed_image)
+        # Display the processed image as grayscale
+        axs[1].imshow(processed_image, cmap='gray')  # Ensure processed image is displayed in grayscale
         axs[1].set_title('Processed Image')
         axs[1].axis('off')
 
