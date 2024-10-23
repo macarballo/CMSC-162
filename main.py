@@ -669,8 +669,6 @@ def black_white_thresholding(image, threshold_value):
     # Convert back to PIL Image for consistency
     return Image.fromarray(bw_image)
 
-from PIL import Image
-
 # Function for power-law (gamma) transformation
 def gamma_transformation(image, gamma_value):
     """
