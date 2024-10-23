@@ -332,7 +332,7 @@ def black_white_thresholding(image, threshold_value):
     # Convert back to PIL Image for consistency
     return Image.fromarray(bw_image)
 
-# Skeleton function for power-law (gamma) transformation
+# Function for power-law (gamma) transformation
 def gamma_transformation(image, gamma_value):
     """Applies gamma transformation to an image."""
     """Converts an RGB image to its negative using the formula: s = 255 - r, g, b."""
